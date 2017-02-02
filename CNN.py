@@ -12,19 +12,21 @@ param_dict = dict(
     patience = [5],
     filters = [16],
     act = ['linear'],
-    dropout = [(0, 0)],#, (0, 0), (.5, 0)],
+    dropout = [(0, )],#, (0, 0), (.5, 0)],
     kernelsize = [3],
     poolsize = [2],
-    batch_size = [16, 128],
+    layers_no = [10],
+    batch_size = [128],
     target_cols=[['Global_active_power']],
     objective=['regr'],
-    norm = [1]
+    norm = [1],
+    maxpooling = [0, 3, 5], #maxpool frequency
 )
 
 datasets = ['household.pkl']
 save_file = 'results/cnn.pkl' 
 
-def LR(datasource, params):
+def CNN(datasource, params):
     globals().update(params)
     G = hdu.Generator(filename=datasource, 
                       input_length=input_length, 
@@ -38,51 +40,36 @@ def LR(datasource, params):
     # theano.config.compute_test_value = 'off'
     # valu.tag.test_value
     inp = Input(shape=(input_length, dim), dtype='float32', name='value_input')
-    conv1 = Convolution1D(filters, kernelsize, border_mode='same', activation=act, input_shape=(input_length, dim), W_constraint=maxnorm(norm))(inp)
-    conv1 = BatchNormalization()(conv1)
-    conv1 = LeakyReLU(alpha=.1)(conv1)
-    conv1 = Dropout(dropout[0])(conv1)
-    conv1 = Convolution1D(filters, kernelsize, border_mode='same', activation=act, W_constraint=maxnorm(norm))(conv1)#(None, 100, 32)
-    conv1 = BatchNormalization()(conv1)
-    conv1 = LeakyReLU(alpha=.1)(conv1)
-    mp1 = MaxPooling1D(pool_length=poolsize, border_mode='valid')(conv1)
-    conv2 = Dropout(dropout[1])(mp1)
-#    conv2 = BatchNormalization()(conv2)
-#    conv2 = Convolution1D(filters, kernelsize, border_mode='same', activation=act, input_shape=(length, dim), W_constraint=maxnorm(norm))(conv2)
-#    conv2 = LeakyReLU(alpha=.1)(conv2)
-#    conv2 = Dropout(dropout[0])(conv2)
-#    conv2 = BatchNormalization()(conv2)
-    conv2 = Convolution1D(filters, kernelsize, border_mode='same', activation=act, W_constraint=maxnorm(norm))(conv2)#(None, 50, 32)
-    conv2 = BatchNormalization()(conv2)
-    conv2 = LeakyReLU(alpha=.1)(conv2)
-    mp2 = MaxPooling1D(pool_length=poolsize, border_mode='valid')(conv2)
-    conv3 = Dropout(dropout[1])(mp2)
-#    conv3 = Convolution1D(filters, kernelsize, border_mode='same', activation=act, input_shape=(length, dim), W_constraint=maxnorm(norm))(conv3)
-#    conv3 = LeakyReLU(alpha=.1)(conv3)
-#    conv3 = Dropout(dropout[0])(conv3)
-#    conv3 = BatchNormalization()(conv3)
-    conv3 = Convolution1D(filters, kernelsize, border_mode='same', activation=act, W_constraint=maxnorm(norm))(conv3) #(None, 25, 32)
-    conv3 = BatchNormalization()(conv3)
-    conv3 = LeakyReLU(alpha=.1)(conv3)
-    mp3 = MaxPooling1D(pool_length=poolsize, border_mode='valid')(conv3)
-    conv4 = Dropout(dropout[1])(mp3)
-    conv4 = Convolution1D(filters, kernelsize, border_mode='same', activation=act, W_constraint=maxnorm(norm))(conv4) #(None, 25, 32)
-    conv4 = BatchNormalization()(conv4)
-    conv4 = LeakyReLU(alpha=.1)(conv4)
-#    conv4 = Dropout(dropout[0])(conv4)
-#    mp4 = MaxPooling1D(pool_length=2, border_mode='valid')(conv4)
-    conv5 = Convolution1D(filters, kernelsize, border_mode='same', activation=act, W_constraint=maxnorm(norm))(conv4) #(None, 25, 32)
-    conv5 = BatchNormalization()(conv5)
-    conv5 = LeakyReLU(alpha=.1)(conv5)
-    mp5 = MaxPooling1D(pool_length=poolsize, border_mode='valid')(conv5)
-    mp5 = Dropout(dropout[1])(mp5)
+
+    outs = [inp]
+    loop_layers = {}
+    
+    for j in range(layers_no):
+        if (maxpooling > 0) and ((j + 1) % maxpooling == 0):
+            loop_layers['maxpool' + str(j+1)] = MaxPooling1D(pool_length=poolsize,
+                                                             border_mode='valid')
+            outs.append(loop_layers['maxpool' + str(j+1)](outs[-1]))
+        else:    
+            name = 'conv' + str(j+1)
+            loop_layers[name] = Convolution1D(filters if (j < layers_no - 1) else len(cols), 
+                                              kernelsize, border_mode='same', 
+                                              activation='linear', name=name,
+                                              W_constraint=maxnorm(norm))
+            outs.append(loop_layers[name](outs[-1]))
+            
+            loop_layers[name + 'BN'] = BatchNormalization()
+            outs.append(loop_layers[name + 'BN'](outs[-1]))
+                           
+            loop_layers[name + 'act'] = LeakyReLU(alpha=.1) if (act == 'leakyrelu') else Activation(act)
+            outs.append(loop_layers[name + 'act'](outs[-1]))
+            
 #    mp5 = Dropout(dropout)(mp5)
-    flat = Flatten()(mp5)
+    flat = Flatten()(outs[-1])
     out = Dense(1, activation='linear', W_constraint=maxnorm(100))(flat)  
     
     nn = Model(input=inp, output=out)
     
-    nn.compile(optimizer=keras.optimizers.Adam(lr=.01),
+    nn.compile(optimizer=keras.optimizers.Adam(lr=.001),
                loss='mse') 
 
     train_gen = G.gen('train', batch_size=batch_size, func=regr_func)
@@ -102,5 +89,5 @@ def LR(datasource, params):
     )    
     return hist, nn, reducer
     
-runner = utils.ModelRunner(param_dict, datasets, LR, save_file)
+runner = utils.ModelRunner(param_dict, datasets, CNN, save_file)
 runner.run(log=log)

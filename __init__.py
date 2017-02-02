@@ -42,7 +42,7 @@ from keras.layers.noise import GaussianNoise
 from keras.layers.normalization import BatchNormalization
 from keras.layers.advanced_activations import PReLU, LeakyReLU
 from keras.layers.wrappers import TimeDistributed
-from keras.layers.core import Merge, Lambda, RepeatVector, Flatten
+from keras.layers.core import Merge, Lambda, RepeatVector, Flatten, Permute
 from keras.layers.pooling import MaxPooling1D
 from keras.layers.convolutional import Convolution1D
 from keras.optimizers import SGD, RMSprop

@@ -55,37 +55,37 @@ class ModelRunner(object):
                 success = -trials
                 setting_time = time.time()
                 while success < 0:
-                    try:
-                        print(data + ' success: ' + repr(success))
-                        print(params)
-                        self.cdata = data
-                        self.cp = params
-                        history, nn, reducer = self.model(data, params)
-                        self.nn = nn
-                        self.reducer = reducer
-                        self.history = history
-                        model_results = history.history
-                        model_results.update(params)
-                        hdf5_name = self._get_hdf5_name()
-                        print('setting time %.2f' % (time.time() - setting_time))
-                        nn.save(hdf5_name)
-                        model_results.update(
-                            {'training_time': time.time() - setting_time,
-                             'datetime': datetime.datetime.now().isoformat(),
-                             'dt': datetime.datetime.now(),
-                             'date': datetime.date.today().isoformat(),
-                             'data': data,
-                             'hdf5': hdf5_name
-    #                             'json': nn.to_json(),
-    #                             'model_params': reducer.saved_layers
-                             }
-                        )
-                        self.cresults.append(model_results)
-                        pd.DataFrame(self.cresults).to_pickle(self.save_file)
-                        success = 1
-                    except Exception as e:
-                        success += 1
-                        print(e)
+#                    try:
+                    print(data + ' success: ' + repr(success))
+                    print(params)
+                    self.cdata = data
+                    self.cp = params
+                    history, nn, reducer = self.model(data, params)
+                    self.nn = nn
+                    self.reducer = reducer
+                    self.history = history
+                    model_results = history.history
+                    model_results.update(params)
+                    hdf5_name = self._get_hdf5_name()
+                    print('setting time %.2f' % (time.time() - setting_time))
+                    nn.save(hdf5_name)
+                    model_results.update(
+                        {'training_time': time.time() - setting_time,
+                         'datetime': datetime.datetime.now().isoformat(),
+                         'dt': datetime.datetime.now(),
+                         'date': datetime.date.today().isoformat(),
+                         'data': data,
+                         'hdf5': hdf5_name
+#                             'json': nn.to_json(),
+#                             'model_params': reducer.saved_layers
+                         }
+                    )
+                    self.cresults.append(model_results)
+                    pd.DataFrame(self.cresults).to_pickle(self.save_file)
+                    success = 1
+#                    except Exception as e:
+#                        success += 1
+#                        print(e)
                 if success < 1:
                     unsuccessful_settings.append([data, params])
         #    with open(save_file, 'wb') as f:
@@ -112,4 +112,11 @@ def make_flat_regression(input_length=60, cols=[0]):
         return (x[:, :input_length, :].reshape(ish), 
                 x[:, input_length:, cols].reshape(osh))
     return regr
-    
+
+def make_vi_regression(input_length=60, cols=[0]):
+    def regr(x):
+#        osh = (x.shape[0], (x.shape[1] - input_length) * len(cols))
+        return ({'inp': x[:, :input_length, :], 
+                 'value_input': x[:, :input_length, cols]},
+                x[:, input_length:, cols])
+    return regr
