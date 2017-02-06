@@ -27,7 +27,8 @@ def download_and_unzip(url='https://archive.ics.uci.edu/ml/machine-learning-data
     X = pd.read_csv('data/' + tmp + '/household_power_consumption.txt', sep=';', 
                     parse_dates={'datetime': [0,1]}, dtype=np.float32, 
                     na_values=['?'], nrows=limit if (limit < np.inf) else None)
-    self.X['time'] = self.X['datetime'].apply(lambda x: x.hour*60 + x.minute)
+    X['time'] = X['datetime'].apply(lambda x: x.hour*60 + x.minute)
+#    X['time'] = X['datetime'].apply(lambda x: (x - pd.Timestamp(x.date())))/np.timedelta64(1, 's')
     filepath = 'data/' + filename
     X.to_pickle(filepath)
     if verbose > 0:

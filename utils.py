@@ -120,3 +120,15 @@ def make_vi_regression(input_length=60, cols=[0]):
                  'value_input': x[:, :input_length, cols]},
                 x[:, input_length:, cols])
     return regr
+    
+def make_cvi_regression(input_length=60, cols=[0]):
+    def regr(x):
+#        osh = (x.shape[0], (x.shape[1] - input_length) * len(cols))
+        il = input_length
+        return (
+            {'inp': x[:, :il, :], 
+             'value_input': x[:, :il, cols]},
+            {'main_output': x[:, il:, cols],
+             'value_output': np.concatenate(il*[x[:, il: il+1, cols]], axis=1)}
+        )           
+    return regr

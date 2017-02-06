@@ -3,7 +3,7 @@ os.chdir('C://Users//mbinkowski//cdsol-r-d.cluster//cdsol-r-d.machine_learning_s
 import utils
 import household_data_utils as hdu
 
-log=True
+log=False
 
 param_dict = dict(
     verbose = [1 + int(log)],
@@ -17,10 +17,13 @@ param_dict = dict(
     poolsize = [2],
     layers_no = [10],
     batch_size = [128],
-    target_cols=[['Global_active_power']],
+    target_cols=[['Global_active_power', 'Global_reactive_power', 'Voltage',
+                  'Global_intensity', 'Sub_metering_1', 'Sub_metering_2',
+                  'Sub_metering_3']],
     objective=['regr'],
     norm = [1],
     maxpooling = [0, 3, 5], #maxpool frequency
+    resnet = [False]
 )
 
 datasets = ['household.pkl']
@@ -62,10 +65,13 @@ def CNN(datasource, params):
                            
             loop_layers[name + 'act'] = LeakyReLU(alpha=.1) if (act == 'leakyrelu') else Activation(act)
             outs.append(loop_layers[name + 'act'](outs[-1]))
+            if resnet and (maxpooling > 0) and (j > 0) and (j % maxpooling == 0):
+                outs.append(merge([outs[-1], outs[-3 * (maxpooling - 1)]], mode='sum', 
+                                  concat_axis=-1, name='residual' + str(j+1)))
             
 #    mp5 = Dropout(dropout)(mp5)
     flat = Flatten()(outs[-1])
-    out = Dense(1, activation='linear', W_constraint=maxnorm(100))(flat)  
+    out = Dense(len(cols) * output_length, activation='linear', W_constraint=maxnorm(100))(flat)  
     
     nn = Model(input=inp, output=out)
     
