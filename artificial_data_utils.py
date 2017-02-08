@@ -143,4 +143,19 @@ class NoisySignal(object):
             
     def __call__(self):
         return self.df
-        
+
+
+class ArtificialGenerator(Generator):
+    def __init__(self, filename='data/artificialPT0SS0n10000S2.csv', 
+                 train_share=.8, input_length=1, output_length=1, verbose=1, 
+                 limit=np.inf, batch_size=16):
+        self.filename = filename
+        else:
+            X = pd.read_csv(filename, index_col=0)
+        X.sort_values(by='datetime', inplace=True)
+        super(Generator, self).__init__(X, train_share=train_share, 
+                                        input_length=input_length, 
+                                        output_length=output_length, 
+                                        verbose=verbose, limit=limit,
+                                        batch_size=batch_size)
+        self.exclude_columns('datetime')        

@@ -23,7 +23,7 @@ def LR(datasource, params):
     G = hdu.Generator(filename=datasource, 
                       input_length=input_length, 
                       output_length=output_length, 
-                      verbose=verbose)
+                      verbose=verbose, batch_size=batch_size)
     
     dim = G.asarray().shape[1]
     cols = [i for i, c in enumerate(G.cnames) if c in target_cols[0]]
@@ -41,8 +41,8 @@ def LR(datasource, params):
                loss='mse',
                metrics=[]) 
 
-    train_gen = G.gen('train', batch_size=batch_size, func=regr_func)
-    valid_gen = G.gen('valid', batch_size=batch_size, func=regr_func)
+    train_gen = G.gen('train', func=regr_func)
+    valid_gen = G.gen('valid', func=regr_func)
     
     reducer = LrReducer(patience=patience, reduce_rate=.1, reduce_nb=3, 
                         verbose=1, monitor='val_loss', restore_best=False)

@@ -98,6 +98,77 @@ class ModelRunner(object):
         return self.cresults
 
 
+class Generator(object):
+    def __init__(self, X, train_share=.8, input_length=1, output_length=1, 
+                 verbose=1, limit=np.inf, batch_size=16, excluded=[]):
+        self.X = X
+        if limit < np.inf:
+            self.X = self.X.loc[:limit]
+        self.train_share = train_share
+        self.input_length = input_length
+        self.output_length = output_length
+        self.l = input_length + output_length
+        self.verbose = verbose
+        self.batch_size = batch_size
+        self.n_train = int((self.X.shape[0] * train_share - self.l)/batch_size) * batch_size + self.l
+        self.n_all = self.n_train + int((self.X.shape[0] - self.n_train - self.l)/batch_size) * batch_size + self.l
+        self.cnames = self.X.columns
+        self.excluded = excluded
+        self._scale()
+    
+    def asarray(self, cols=None):
+        if cols is None:
+            cols = [c for c in self.cnames if c not in self.excluded]
+        return np.asarray(self.X[cols], dtype=np.float32)
+        
+    def exclude_columns(self, cols):
+        self.excluded += cols
+        
+    def _scale(self, exclude=None):
+        if exclude is None:
+            exclude = self.excluded
+        cols = [c for c in self.X.columns if c not in exclude]
+        self.means = self.X.loc[:self.n_train, cols].mean(axis=0)
+        self.stds = self.X.loc[:self.n_train, cols].std(axis=0)
+        self.X.loc[:, cols] = (self.X[cols] - self.means)/self.stds
+        
+    def gen(self, mode='train', batch_size=None, func=None, shuffle=True, 
+            n_start=0, n_end=np.inf):
+        if batch_size is None:
+            batch_size = self.batch_size
+        if func is None:
+            func = lambda x: (x[:, :self.input_length, :], x[:, self.input_length:, :])
+        if mode=='train':
+            n_end = self.n_train
+        elif mode == 'valid':
+            n_start = self.n_train
+            n_end = self.n_all
+        elif mode == 'manual':
+            assert n_end < self.n_all
+            assert n_start >= 0
+            assert n_end > n_start
+        else:
+            raise Exception('invalid mode')
+        if not shuffle:
+            if n_end - n_start % batch_size != 0:
+                raise Exception('For non-shuffled input (for RNN) batch_size must divide n_end - n_start')
+            n_start -= self.l - 1
+            n_end -= self.l - 1
+        XX = self.asarray()
+        x = []
+        while True:
+            order = np.arange(n_start + self.input_length, n_end - self.output_length)
+            if shuffle:
+                order = np.random.permutation(order)
+            else:
+                order = order.reshape(batch_size, len(order)//batch_size).transpose().ravel()
+            for i in order:
+                if len(x) == batch_size:
+                    yield func(np.array(x))
+                    x = []
+                x.append(XX[i - self.input_length: i + self.output_length, :])
+                
+        
 def make_regression(input_length=60, cols=[0]):
     def regr(x):
         osh = (x.shape[0], (x.shape[1] - input_length) * len(cols))

@@ -36,7 +36,7 @@ import seaborn as sns
 # keras
 import keras
 from keras.models import Sequential, Model, load_model
-from keras.layers import Dense, Activation, Dropout, Reshape, Input, merge
+from keras.layers import Dense, Activation, Dropout, Reshape, Input, merge, LocallyConnected1D
 from keras.layers.recurrent import LSTM, GRU
 from keras.layers.noise import GaussianNoise
 from keras.layers.normalization import BatchNormalization
@@ -64,5 +64,6 @@ else:
 # contrib
 #from quotebook_utils import *
 from keras_utils import *
+from utils import *
 #from artificial_utils import *
 #from data import datum

@@ -14,7 +14,7 @@ param_dict = dict(
     filters = [16],
     act = ['linear'],
     dropout = [(0, 0)],#, (0, 0), (.5, 0)],
-    kernelsize = [[3, 1], 3],
+    kernelsize = [[3, 1]],
     layers_no = [10],
     poolsize = [None],
     architecture = [{'softmax': True, 'lambda': False, 'nonneg': False}],
@@ -25,9 +25,9 @@ param_dict = dict(
     objective=['regr'],
     norm = [1],
     nonnegative = [False],
-    connection_freq = [2],
-    aux_weight = [.1],
-    shared_final_weights = [True],
+    connection_freq = [0, 2],
+    aux_weight = [0.0, 0.1],
+    shared_final_weights = [False],
     resnet = [False]
 )
 
@@ -36,10 +36,11 @@ save_file = 'results/cvi.pkl'
 
 def VI(datasource, params):
     globals().update(params)
-    G = hdu.Generator(filename=datasource, 
-                      input_length=input_length, 
-                      output_length=output_length, 
-                      verbose=verbose)
+    G = hdu.HouseholdGenerator(filename=datasource, 
+                              input_length=input_length, 
+                              output_length=output_length, 
+                              verbose=verbose,
+                              batch_size=batch_size)
     
     dim = G.asarray().shape[1]
     cols = [i for i, c in enumerate(G.cnames) if c in target_cols]
@@ -93,8 +94,9 @@ def VI(datasource, params):
         offsets.append(loop_layers[name + 'act'](offsets[-1]))
         
         # offset -> significance connection
-        if ((j+1) % connection_freq == 0) and (j+1 < layers_no):    
-            sigs.append(merge([offsets[-1], sigs[-1]], mode='concat', concat_axis=-1, name='concat' + str(j+1)))
+        if connection_freq > 0:
+            if ((j+1) % connection_freq == 0) and (j+1 < layers_no):    
+                sigs.append(merge([offsets[-1], sigs[-1]], mode='concat', concat_axis=-1, name='concat' + str(j+1)))
             
     value_output = merge([offsets[-1], value_input], mode='sum', concat_axis=-1, name='value_output')
 
@@ -111,7 +113,7 @@ def VI(datasource, params):
                               name= 'out')(main)
     else: 
         out = LocallyConnected1D(nb_filter=1, filter_length=1,   # dimensions permuted. time dimension treated as separate channels, no connections between different features
-                                 bordermode='valid')
+                                 border_mode='valid')(main)
         
     main_output = Permute((2,1), name='main_output')(out)
     
@@ -121,8 +123,8 @@ def VI(datasource, params):
                loss={'main_output': 'mse', 'value_output' : 'mse'},
                loss_weights={'main_output': 1., 'value_output': aux_weight}) 
 
-    train_gen = G.gen('train', batch_size=batch_size, func=regr_func)
-    valid_gen = G.gen('valid', batch_size=batch_size, func=regr_func)
+    train_gen = G.gen('train', func=regr_func)
+    valid_gen = G.gen('valid', func=regr_func)
     reducer = LrReducer(patience=patience, reduce_rate=.1, reduce_nb=3, 
                         verbose=1, monitor='val_main_output_loss', restore_best=True)
     
@@ -132,7 +134,7 @@ def VI(datasource, params):
     hist = nn.fit_generator(
         train_gen,
         samples_per_epoch = G.n_train - length-1,
-        nb_epoch=1000,
+        nb_epoch=7,
         callbacks=[reducer],
     #            callbacks=[callback, keras.callbacks.EarlyStopping(monitor='val_loss', patience=patience)],
         validation_data=valid_gen,

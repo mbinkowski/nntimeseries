@@ -13,7 +13,7 @@ param_dict = dict(
     filters = [32],
     act = ['linear'],
     dropout = [(0, )],#, (0, 0), (.5, 0)],
-    kernelsize = [[3, 1],
+    kernelsize = [[1, 3], 3],
     poolsize = [2],
     layers_no = [10],
     batch_size = [128],
@@ -22,7 +22,7 @@ param_dict = dict(
                   'Sub_metering_3']],
     objective=['regr'],
     norm = [1],
-    maxpooling = [0, 3, 5], #maxpool frequency
+    maxpooling = [3], #maxpool frequency
     resnet = [False]
 )
 
@@ -31,10 +31,11 @@ save_file = 'results/cnn.pkl'
 
 def CNN(datasource, params):
     globals().update(params)
-    G = hdu.Generator(filename=datasource, 
-                      input_length=input_length, 
-                      output_length=output_length, 
-                      verbose=verbose)
+    G = hdu.HouseholdGenerator(filename=datasource, 
+                              input_length=input_length, 
+                              output_length=output_length, 
+                              verbose=verbose,
+                              batch_size=batch_size)
     
     dim = G.asarray().shape[1]
     cols = [i for i, c in enumerate(G.cnames) if c in target_cols[0]]
@@ -69,7 +70,7 @@ def CNN(datasource, params):
                 outs.append(merge([outs[-1], outs[-3 * (maxpooling - 1)]], mode='sum', 
                                   concat_axis=-1, name='residual' + str(j+1)))
                 
-            loop_layers[name + 'act'] = LeakyReLU(alpha=.1, name + 'act') if (act == 'leakyrelu') else Activation(act, name=name + 'act')
+            loop_layers[name + 'act'] = LeakyReLU(alpha=.1, name=name + 'act') if (act == 'leakyrelu') else Activation(act, name=name + 'act')
             outs.append(loop_layers[name + 'act'](outs[-1]))
             
             
@@ -82,21 +83,21 @@ def CNN(datasource, params):
     nn.compile(optimizer=keras.optimizers.Adam(lr=.001),
                loss='mse') 
 
-    train_gen = G.gen('train', batch_size=batch_size, func=regr_func)
-    valid_gen = G.gen('valid', batch_size=batch_size, func=regr_func)
-    reducer = LrReducer(patience=patience, reduce_rate=.1, reduce_nb=3, verbose=1, monitor='val_loss', restore_best=True)
+    train_gen = G.gen('train', func=regr_func)
+    valid_gen = G.gen('valid', func=regr_func)
+    reducer = LrReducer(patience=patience, reduce_rate=.1, reduce_nb=2, verbose=1, monitor='val_loss', restore_best=True)
     
     print('Total model parameters: %d' % int(np.sum([np.sum([np.prod(K.eval(w).shape) for w in l.trainable_weights]) for l in nn.layers])))
     
     length = input_length + output_length
     hist = nn.fit_generator(
         train_gen,
-        samples_per_epoch = G.n_train - length-1,
+        samples_per_epoch = G.n_train - length,
         nb_epoch=1000,
         callbacks=[reducer],
     #            callbacks=[callback, keras.callbacks.EarlyStopping(monitor='val_loss', patience=patience)],
         validation_data=valid_gen,
-        nb_val_samples=G.n_all - G.n_train - length-1,
+        nb_val_samples=G.n_all - G.n_train - length,
         verbose=verbose
     )    
     return hist, nn, reducer
