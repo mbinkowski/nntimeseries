@@ -14,7 +14,7 @@ param_dict = dict(
     filters = [16],
     act = ['linear'],
     dropout = [(0, 0)],#, (0, 0), (.5, 0)],
-    kernelsize = [[1, 3], 3],
+    kernelsize = [[3, 1], 3],
     layers_no = [10],
     poolsize = [None],
     architecture = [{'softmax': True, 'lambda': False, 'nonneg': False}],
@@ -27,7 +27,8 @@ param_dict = dict(
     nonnegative = [False],
     connection_freq = [2],
     aux_weight = [.1],
-    shared_final_weights = [True]
+    shared_final_weights = [True],
+    resnet = [False]
 )
 
 datasets = ['household.pkl']
@@ -52,6 +53,7 @@ def VI(datasource, params):
     loop_layers = {}
     
     for j in range(layers_no):
+        # significance
         name = 'significance' + str(j+1)
         ks = kernelsize[j % len(kernelsize)] if (type(kernelsize) == list) else kernelsize
         loop_layers[name] = Convolution1D(filters if (j < layers_no - 1) else len(cols), 
@@ -60,12 +62,18 @@ def VI(datasource, params):
                                           W_constraint=maxnorm(norm))
         sigs.append(loop_layers[name](sigs[-1]))
         
-        loop_layers[name + 'BN'] = BatchNormalization()
+        loop_layers[name + 'BN'] = BatchNormalization(name=name + 'BN')
         sigs.append(loop_layers[name + 'BN'](sigs[-1]))
+        
+        # residual connections
+        if resnet and (connection_freq > 0) and (j > 0) and ((j+1) % connection_freq == 0):
+            sigs.append(merge([sigs[-1], sigs[-3 * connection_freq + (j==1)]], mode='sum', 
+                               concat_axis=-1, name='significance_residual' + str(j+1)))
                        
-        loop_layers[name + 'act'] = LeakyReLU(alpha=.1) if (act == 'leakyrelu') else Activation(act)
+        loop_layers[name + 'act'] = LeakyReLU(alpha=.1, name=name + 'act') if (act == 'leakyrelu') else Activation(act, name=name + 'act')
         sigs.append(loop_layers[name + 'act'](sigs[-1]))
-
+        
+        # offset
         name = 'offset' + str(j+1)
         loop_layers[name] = Convolution1D(filters if (j < layers_no - 1) else len(cols),
                                           filter_length=1, border_mode='same', 
@@ -73,13 +81,18 @@ def VI(datasource, params):
                                           W_constraint=maxnorm(norm))
         offsets.append(loop_layers[name](offsets[-1]))
         
-        loop_layers[name + 'BN'] = BatchNormalization()
+        loop_layers[name + 'BN'] = BatchNormalization(name=name + 'BN')
         offsets.append(loop_layers[name + 'BN'](offsets[-1]))
-                       
-        loop_layers[name + 'act'] = LeakyReLU(alpha=.1) if (act == 'leakyrelu') else Activation(act)
+        
+        # residual connections
+        if resnet and (connection_freq > 0) and (j > 0) and ((j+1) % connection_freq == 0):
+            offsets.append(merge([offsets[-1], offsets[-3 * connection_freq + (j==1)]], mode='sum', 
+                                  concat_axis=-1, name='offset_residual' + str(j+1)))
+                        
+        loop_layers[name + 'act'] = LeakyReLU(alpha=.1, name=name + 'act') if (act == 'leakyrelu') else Activation(act, name=name + 'act')
         offsets.append(loop_layers[name + 'act'](offsets[-1]))
         
-        # join
+        # offset -> significance connection
         if ((j+1) % connection_freq == 0) and (j+1 < layers_no):    
             sigs.append(merge([offsets[-1], sigs[-1]], mode='concat', concat_axis=-1, name='concat' + str(j+1)))
             
@@ -88,7 +101,8 @@ def VI(datasource, params):
     value = Permute((2,1))(value_output)
 
     sig = Permute((2,1))(sigs[-1])
-    sig = TimeDistributed(Dense(input_length, activation='softmax'), name='softmax')(sig)
+#    sig = TimeDistributed(Dense(input_length, activation='softmax'), name='softmax')(sig) ## SHOULD BE UNNECESSARY, GAVE GOOD RESULTS. SIMILAR PERFORMANCE WITHOUT.
+    sig = TimeDistributed(Activation('softmax'), name='softmax')(sig)
     
     main = merge([sig, value], mode='mul', concat_axis=-1, name='significancemerge')
     if shared_final_weights:
@@ -96,7 +110,9 @@ def VI(datasource, params):
                                     W_constraint=nonneg() if nonnegative else None),
                               name= 'out')(main)
     else: 
-        raise Exception('not implemented')
+        out = LocallyConnected1D(nb_filter=1, filter_length=1,   # dimensions permuted. time dimension treated as separate channels, no connections between different features
+                                 bordermode='valid')
+        
     main_output = Permute((2,1), name='main_output')(out)
     
     nn = Model(input=[inp, value_input], output=[main_output, value_output])
@@ -107,7 +123,10 @@ def VI(datasource, params):
 
     train_gen = G.gen('train', batch_size=batch_size, func=regr_func)
     valid_gen = G.gen('valid', batch_size=batch_size, func=regr_func)
-    reducer = LrReducer(patience=patience, reduce_rate=.1, reduce_nb=3, verbose=1, monitor='val_main_output_loss', restore_best=True)
+    reducer = LrReducer(patience=patience, reduce_rate=.1, reduce_nb=3, 
+                        verbose=1, monitor='val_main_output_loss', restore_best=True)
+    
+    print('Total model parameters: %d' % int(np.sum([np.sum([np.prod(K.eval(w).shape) for w in l.trainable_weights]) for l in nn.layers])))
     
     length = input_length + output_length
     hist = nn.fit_generator(

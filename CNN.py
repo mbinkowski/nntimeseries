@@ -10,10 +10,10 @@ param_dict = dict(
     input_length = [60],
     output_length = [1],
     patience = [5],
-    filters = [16],
+    filters = [32],
     act = ['linear'],
     dropout = [(0, )],#, (0, 0), (.5, 0)],
-    kernelsize = [3],
+    kernelsize = [[3, 1],
     poolsize = [2],
     layers_no = [10],
     batch_size = [128],
@@ -54,20 +54,24 @@ def CNN(datasource, params):
             outs.append(loop_layers['maxpool' + str(j+1)](outs[-1]))
         else:    
             name = 'conv' + str(j+1)
+            ks = kernelsize[j % len(kernelsize)] if (type(kernelsize) == list) else kernelsize
             loop_layers[name] = Convolution1D(filters if (j < layers_no - 1) else len(cols), 
-                                              kernelsize, border_mode='same', 
+                                              filter_length=ks, border_mode='same', 
                                               activation='linear', name=name,
                                               W_constraint=maxnorm(norm))
             outs.append(loop_layers[name](outs[-1]))
             
-            loop_layers[name + 'BN'] = BatchNormalization()
+            loop_layers[name + 'BN'] = BatchNormalization(name=name + 'BN')
             outs.append(loop_layers[name + 'BN'](outs[-1]))
-                           
-            loop_layers[name + 'act'] = LeakyReLU(alpha=.1) if (act == 'leakyrelu') else Activation(act)
-            outs.append(loop_layers[name + 'act'](outs[-1]))
+            
+            # residual connections
             if resnet and (maxpooling > 0) and (j > 0) and (j % maxpooling == 0):
                 outs.append(merge([outs[-1], outs[-3 * (maxpooling - 1)]], mode='sum', 
                                   concat_axis=-1, name='residual' + str(j+1)))
+                
+            loop_layers[name + 'act'] = LeakyReLU(alpha=.1, name + 'act') if (act == 'leakyrelu') else Activation(act, name=name + 'act')
+            outs.append(loop_layers[name + 'act'](outs[-1]))
+            
             
 #    mp5 = Dropout(dropout)(mp5)
     flat = Flatten()(outs[-1])
@@ -81,6 +85,8 @@ def CNN(datasource, params):
     train_gen = G.gen('train', batch_size=batch_size, func=regr_func)
     valid_gen = G.gen('valid', batch_size=batch_size, func=regr_func)
     reducer = LrReducer(patience=patience, reduce_rate=.1, reduce_nb=3, verbose=1, monitor='val_loss', restore_best=True)
+    
+    print('Total model parameters: %d' % int(np.sum([np.sum([np.prod(K.eval(w).shape) for w in l.trainable_weights]) for l in nn.layers])))
     
     length = input_length + output_length
     hist = nn.fit_generator(

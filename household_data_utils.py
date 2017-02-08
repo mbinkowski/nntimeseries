@@ -90,12 +90,16 @@ class Generator(object):
             assert n_end > n_start
         else:
             raise Exception('invalid mode')
+        if (not shuffle) and (n_end - n_start % batch_size != 0):
+            raise Exception('For non-shuffled input (for RNN) batch_size must divide n_end - n_start')
         XX = self.asarray()
         x = []
         while True:
             order = np.arange(n_start + self.input_length, n_end - self.output_length)
             if shuffle:
                 order = np.random.permutation(order)
+            else:
+                order = order.reshape(batch_size, len(order)//batch_size).transpose().ravel()
             for i in order:
                 if len(x) == batch_size:
                     yield func(np.array(x))
