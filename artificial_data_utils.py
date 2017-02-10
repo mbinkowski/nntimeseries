@@ -45,12 +45,12 @@ class GaussianNoise(object):
         
         
 class NoisySignal(object):
-    def __init__(self, n=10000, sources=2, poisson_time=False, single_source=True, 
+    def __init__(self, n=10000, sources=2, exponential_time=False, single_source=True, 
                  order=10, e_sigma=.005, params_sum=.999, 
                  filepath=None, save=True):
         self.n = n
         self.sources = sources
-        self.poisson_time = poisson_time
+        self.exponential_time = exponential_time
         self.single_source = single_source
         name = 'artificial' + self.__name__() + '.pickle'
         if (type(filepath) == bool) and (name in os.listdir('data/')):
@@ -77,8 +77,8 @@ class NoisySignal(object):
         self.params = np.random.rand(self.order)
         self.params = self.params * self.params_sum/self.params.sum()
         x = np.random.normal(size=(self.order,)) * self.e_sigma
-        if self.poisson_time:
-            self.durations = np.random.poisson(2, self.n) + 1
+        if self.exponential_time:
+            self.durations = np.ceil(np.random.exponential(scale=2, size=(self.n,))) + 1
         else:
             self.durations = np.ones(self.n)
         self.N = int(self.durations.sum()) + 1
@@ -99,10 +99,10 @@ class NoisySignal(object):
                 noises.append(BinaryNoise(additive=False, scale=scale))
             elif i%4 == 2:
                 noises.append(GaussianNoise(additive=True, scale=scale))
-            elif i%4 == 1:
+            elif i%4 == 3:
                 noises.append(GaussianNoise(additive=False, scale=scale))
 
-        X = np.zeros((self.N, 1 + self.sources + self.single_source + 2*self.poisson_time))
+        X = np.zeros((self.N, 1 + self.sources + self.single_source + 2*self.exponential_time))
         X[:, 0] = self.x
 
         if self.single_source:
@@ -119,7 +119,7 @@ class NoisySignal(object):
                 X[:, i + 1] = noise(self.x)
             self.names = ['original'] + ['source' + str(i) for i in np.arange(self.sources)]
 
-        if self.poisson_time:
+        if self.exponential_time:
             self.names += ['valid', 'duration']
             d_ind = np.asarray(self.durations.cumsum(), dtype=np.int)
             X[d_ind, -1] = self.durations
@@ -132,7 +132,7 @@ class NoisySignal(object):
         return '\n'.join(['Noisy Signal'] + [noise.__repr__() for noise in self.noises])
        
     def __name__(self):
-        return 'PT' + str(int(self.poisson_time)) + 'SS' + str(int(self.single_source)) + 'n' + str(int(self.n)) + 'S' + str(int(self.sources))
+        return 'ET' + str(int(self.exponential_time)) + 'SS' + str(int(self.single_source)) + 'n' + str(int(self.n)) + 'S' + str(int(self.sources))
         
     def save(self, filepath='data/artificial'):
         filepath += self.__name__()
@@ -146,16 +146,22 @@ class NoisySignal(object):
 
 
 class ArtificialGenerator(Generator):
-    def __init__(self, filename='data/artificialPT0SS0n10000S2.csv', 
-                 train_share=.8, input_length=1, output_length=1, verbose=1, 
-                 limit=np.inf, batch_size=16):
+    def __init__(self, filename='data/artificialET0SS0n10000S2.csv', 
+                 train_share=(.8, 1.), input_length=1, output_length=1, verbose=1, 
+                 limit=np.inf, batch_size=16, diffs=False):
         self.filename = filename
-        else:
-            X = pd.read_csv(filename, index_col=0)
-        X.sort_values(by='datetime', inplace=True)
-        super(Generator, self).__init__(X, train_share=train_share, 
-                                        input_length=input_length, 
-                                        output_length=output_length, 
-                                        verbose=verbose, limit=limit,
-                                        batch_size=batch_size)
-        self.exclude_columns('datetime')        
+        X = pd.read_csv(filename, index_col=0)
+        super(ArtificialGenerator, self).__init__(X, train_share=train_share, 
+                                                  input_length=input_length, 
+                                                  output_length=output_length, 
+                                                  verbose=verbose, limit=limit,
+                                                  batch_size=batch_size,
+                                                  diffs=diffs)  
+    
+    def make_io_func(self, io_form, cols=[0], input_cols=None):
+        if input_cols is None:
+            input_cols = np.arange(1, len(self.X.columns))
+        return super(ArtificialGenerator, self).make_io_func(io_form, cols=cols, 
+                                                             input_cols=input_cols)
+    def get_dim(self):
+        return super(ArtificialGenerator, self).get_dim() - 1

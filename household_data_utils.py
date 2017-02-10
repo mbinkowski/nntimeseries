@@ -40,8 +40,8 @@ def download_and_unzip(url='https://archive.ics.uci.edu/ml/machine-learning-data
 class HouseholdGenerator(Generator):
     def __init__(self, filename='household.pkl', 
                  url='https://archive.ics.uci.edu/ml/machine-learning-databases/00235/household_power_consumption.zip',
-                 train_share=.8, input_length=1, output_length=1, verbose=1, 
-                 limit=np.inf, batch_size=16):
+                 train_share=(.8, 1.), input_length=1, output_length=1, verbose=1, 
+                 limit=np.inf, batch_size=16, diffs=False):
         self.filename = filename
         self.url = url
         if self.filename not in os.listdir('data'):
@@ -58,6 +58,9 @@ class HouseholdGenerator(Generator):
                                                 output_length=output_length, 
                                                 verbose=verbose, limit=limit,
                                                 batch_size=batch_size,
-                                                excluded=['datetime'])
+                                                excluded=['datetime'],
+                                                diffs=diffs)
 
-    
+    def get_target_cols(self, ids=True):
+        return [(i if ids else c) for i, c in enumerate(self.cols) if 'time' not in c]
+

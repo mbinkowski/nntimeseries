@@ -3,31 +3,32 @@ os.chdir('C://Users//mbinkowski//cdsol-r-d.cluster//cdsol-r-d.machine_learning_s
 import utils
 import household_data_utils as hdu
 
-log=True
+log=False
 
 param_dict = dict(
     verbose = [1 + int(log)],
     input_length = [60],
     output_length = [1],
     patience = [5],
-    batch_size = [128, 16],
-    target_cols=[['Global_active_power']],
+    batch_size = [128],
+    target_cols=[['Global_active_power', 'Global_reactive_power', 'Voltage',
+                  'Global_intensity', 'Sub_metering_1', 'Sub_metering_2',
+                  'Sub_metering_3']],
     objective=['regr']
 )
 datasets = ['household.pkl']
 save_file = 'results/lr.pkl' 
-
+gen = hdu.HouseholdGenerator
 
 def LR(datasource, params):
     globals().update(params)
-    G = hdu.Generator(filename=datasource, 
-                      input_length=input_length, 
-                      output_length=output_length, 
-                      verbose=verbose, batch_size=batch_size)
+    G = gen(filename=datasource, input_length=input_length, 
+            output_length=output_length, verbose=verbose, 
+            batch_size=batch_size)
     
     dim = G.asarray().shape[1]
-    cols = [i for i, c in enumerate(G.cnames) if c in target_cols[0]]
-    regr_func = utils.make_flat_regression(input_length=input_length, cols=cols)
+    cols = [i for i, c in enumerate(G.cnames) if c in target_cols]
+    regr_func = G.make_io_func(io_form='flat_regression', cols=cols)
     
     # theano.config.compute_test_value = 'off'
     # valu.tag.test_value
@@ -44,18 +45,18 @@ def LR(datasource, params):
     train_gen = G.gen('train', func=regr_func)
     valid_gen = G.gen('valid', func=regr_func)
     
-    reducer = LrReducer(patience=patience, reduce_rate=.1, reduce_nb=3, 
+    reducer = LrReducer(patience=patience, reduce_rate=.1, reduce_nb=2, 
                         verbose=1, monitor='val_loss', restore_best=False)
     
     length = input_length + output_length
     hist = nn.fit_generator(
         train_gen,
-        samples_per_epoch=G.n_train - length - 1,
+        samples_per_epoch=G.n_train - length,
         nb_epoch=1000,
         callbacks=[reducer],
     #            callbacks=[callback, keras.callbacks.EarlyStopping(monitor='val_loss', patience=patience)],
         validation_data=valid_gen,
-        nb_val_samples=G.n_all - G.n_train - length - 1,
+        nb_val_samples=G.n_all - G.n_train - length,
         verbose=verbose
     )    
     return hist, nn, reducer

@@ -99,9 +99,11 @@ class ModelRunner(object):
 
 
 class Generator(object):
-    def __init__(self, X, train_share=.8, input_length=1, output_length=1, 
-                 verbose=1, limit=np.inf, batch_size=16, excluded=[]):
+    def __init__(self, X, train_share=(.8, 1), input_length=1, output_length=1, 
+                 verbose=1, limit=np.inf, batch_size=16, excluded=[], 
+                 diffs=False):
         self.X = X
+        self.diffs = diffs
         if limit < np.inf:
             self.X = self.X.loc[:limit]
         self.train_share = train_share
@@ -110,16 +112,25 @@ class Generator(object):
         self.l = input_length + output_length
         self.verbose = verbose
         self.batch_size = batch_size
-        self.n_train = int((self.X.shape[0] * train_share - self.l)/batch_size) * batch_size + self.l
-        self.n_all = self.n_train + int((self.X.shape[0] - self.n_train - self.l)/batch_size) * batch_size + self.l
-        self.cnames = self.X.columns
+        self.n_train = int(((self.X.shape[0] - diffs) * train_share[0] - self.l)/batch_size) * batch_size + self.l
+        self.n_all = self.n_train + int(((self.X.shape[0] - diffs) * train_share[1] - self.n_train - self.l)/batch_size) * batch_size + self.l
         self.excluded = excluded
+        self.cols = [c for c in self.X.columns if c not in self.excluded]
         self._scale()
     
     def asarray(self, cols=None):
         if cols is None:
-            cols = [c for c in self.cnames if c not in self.excluded]
+            cols = self.cols
         return np.asarray(self.X[cols], dtype=np.float32)
+        
+    def get_dim(self):
+        return self.asarray().shape[1]
+
+    def get_target_cols(self, ids=True):
+        if ids:
+            return np.arange(len(self.cols))
+        else:
+            return self.cols
         
     def exclude_columns(self, cols):
         self.excluded += cols
@@ -128,6 +139,9 @@ class Generator(object):
         if exclude is None:
             exclude = self.excluded
         cols = [c for c in self.X.columns if c not in exclude]
+        if self.diffs:
+            self.X.loc[:, cols] = self.X.loc[:, cols].diff()
+            self.X = self.X.loc[self.X.index[1:]]
         self.means = self.X.loc[:self.n_train, cols].mean(axis=0)
         self.stds = self.X.loc[:self.n_train, cols].std(axis=0)
         self.X.loc[:, cols] = (self.X[cols] - self.means)/self.stds
@@ -167,37 +181,76 @@ class Generator(object):
                     yield func(np.array(x))
                     x = []
                 x.append(XX[i - self.input_length: i + self.output_length, :])
-                
+    
+    def make_io_func(self, io_form, cols=[0], input_cols=None):
+        il = self.input_length
+        if io_form == 'regression':
+            def regr(x):
+                osh = (x.shape[0], (x.shape[1] - il) * len(cols))
+                return (x[:, :il, :] if (input_cols is None) else x[:, :il, input_cols], 
+                        x[:, il:, cols].reshape(osh))
+            return regr
         
-def make_regression(input_length=60, cols=[0]):
+        elif io_form == 'flat_regression':
+            def regr(x):
+                ish = (x.shape[0], il * x.shape[2])
+                osh = (x.shape[0], (x.shape[1] - il) * len(cols))
+                inp =  x[:, :il, :] if (input_cols is None) else x[:, :il, input_cols]
+                return (inp.reshape(ish), 
+                        x[:, il:, cols].reshape(osh))
+            return regr
+    
+        elif io_form == 'vi_regression':
+            def regr(x):
+        #        osh = (x.shape[0], (x.shape[1] - il) * len(cols))
+                return ({'inp': x[:, :il, :] if (input_cols is None) else x[:, :il, input_cols], 
+                         'value_input': x[:, :il, cols]},
+                        x[:, il:, cols])
+            return regr
+        
+        elif io_form == 'cvi_regression':
+            def regr(x):
+        #        osh = (x.shape[0], (x.shape[1] - il) * len(cols))
+                return (
+                    {'inp': x[:, :il, :] if (input_cols is None) else x[:, :il, input_cols], 
+                     'value_input': x[:, :il, cols]},
+                    {'main_output': x[:, il:, cols],
+                     'value_output': np.concatenate(il*[x[:, il: il+1, cols]], axis=1)}
+                )           
+            return regr
+        else:
+            raise Exception('io_form' + repr(io_form) + 'not implemented')
+        
+def make_regression(input_length=60, cols=[0], input_cols=None):
     def regr(x):
         osh = (x.shape[0], (x.shape[1] - input_length) * len(cols))
-        return (x[:, :input_length, :], 
+        return (x[:, :input_length, :] if (input_cols is None) else x[:, :input_length, input_cols], 
                 x[:, input_length:, cols].reshape(osh))
     return regr
     
-def make_flat_regression(input_length=60, cols=[0]):
+def make_flat_regression(input_length=60, cols=[0], input_cols=None):
     def regr(x):
         ish = (x.shape[0], input_length * x.shape[2])
         osh = (x.shape[0], (x.shape[1] - input_length) * len(cols))
-        return (x[:, :input_length, :].reshape(ish), 
+        inp =  x[:, :input_length, :] if (input_cols is None) else x[:, :input_length, input_cols]
+        return (inp.reshape(ish), 
                 x[:, input_length:, cols].reshape(osh))
     return regr
 
-def make_vi_regression(input_length=60, cols=[0]):
+def make_vi_regression(input_length=60, cols=[0], input_cols=None):
     def regr(x):
 #        osh = (x.shape[0], (x.shape[1] - input_length) * len(cols))
-        return ({'inp': x[:, :input_length, :], 
+        return ({'inp': x[:, :input_length, :] if (input_cols is None) else x[:, :input_length, input_cols], 
                  'value_input': x[:, :input_length, cols]},
                 x[:, input_length:, cols])
     return regr
     
-def make_cvi_regression(input_length=60, cols=[0]):
+def make_cvi_regression(input_length=60, cols=[0], input_cols=None):
     def regr(x):
 #        osh = (x.shape[0], (x.shape[1] - input_length) * len(cols))
         il = input_length
         return (
-            {'inp': x[:, :il, :], 
+            {'inp': x[:, :il, :] if (input_cols is None) else x[:, :il, input_cols], 
              'value_input': x[:, :il, cols]},
             {'main_output': x[:, il:, cols],
              'value_output': np.concatenate(il*[x[:, il: il+1, cols]], axis=1)}

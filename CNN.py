@@ -1,45 +1,49 @@
 from __init__ import *
 os.chdir('C://Users//mbinkowski//cdsol-r-d.cluster//cdsol-r-d.machine_learning_studies//nntimeseries')
 import utils
-import household_data_utils as hdu
+
 
 log=False
 
 param_dict = dict(
     verbose = [1 + int(log)],
+    train_share = [(.1, .13), (.8, 1.)],
     input_length = [60],
     output_length = [1],
     patience = [5],
-    filters = [32],
+    filters = [16],
     act = ['linear'],
     dropout = [(0, )],#, (0, 0), (.5, 0)],
     kernelsize = [[1, 3], 3],
     poolsize = [2],
     layers_no = [10],
     batch_size = [128],
-    target_cols=[['Global_active_power', 'Global_reactive_power', 'Voltage',
-                  'Global_intensity', 'Sub_metering_1', 'Sub_metering_2',
-                  'Sub_metering_3']],
     objective=['regr'],
     norm = [1],
     maxpooling = [3], #maxpool frequency
-    resnet = [False]
+    resnet = [False],
+    diffs = [False],
+    dataset = ['household.pkl'], #['data/artificialPT0SS0n100000S12.csv'],#
+    target_cols=['all']
 )
 
-datasets = ['household.pkl']
-save_file = 'results/cnn.pkl' 
+if 'household' in param_dict['dataset'][0]:
+    from household_data_utils import HouseholdGenerator as gen
+    save_file = 'results/cvi.pkl' #'results/cnn2.pkl' #
+elif 'artificial' in param_dict['dataset'][0]:
+    from artificial_data_utils import ArtificialGenerator as gen
+    save_file = 'results/artificial_cvi.pkl' #'results/cnn2.pkl' #
 
 def CNN(datasource, params):
     globals().update(params)
-    G = hdu.HouseholdGenerator(filename=datasource, 
-                              input_length=input_length, 
-                              output_length=output_length, 
-                              verbose=verbose,
-                              batch_size=batch_size)
+    G = gen(filename=dataset, train_share=train_share,
+            input_length=input_length, 
+            output_length=output_length, verbose=verbose,
+            batch_size=batch_size, diffs=diffs)
     
-    dim = G.asarray().shape[1]
-    cols = [i for i, c in enumerate(G.cnames) if c in target_cols[0]]
-    regr_func = utils.make_regression(input_length=input_length, cols=cols)
+    dim = G.get_dim()
+    cols = G.get_target_cols() if (target_cols == 'all') else [i for i, c in enumerate(G.X.columns) if c in target_cols]
+    regr_func = G.make_io_func(io_form='regression', cols=cols)
 
     # theano.config.compute_test_value = 'off'
     # valu.tag.test_value
@@ -102,5 +106,5 @@ def CNN(datasource, params):
     )    
     return hist, nn, reducer
     
-runner = utils.ModelRunner(param_dict, datasets, CNN, save_file)
+runner = utils.ModelRunner(param_dict, param_dict['dataset'], CNN, save_file)
 runner.run(log=log)

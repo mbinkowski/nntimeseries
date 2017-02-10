@@ -8,7 +8,7 @@ log=False
 
 param_dict = dict(
     verbose = [1 + int(log)],
-    train_share = [(.1, .13)],
+    train_share = [(.1, .13), (.8, 1.)],
     input_length = [60],
     output_length = [1],
     patience = [5],
@@ -16,9 +16,9 @@ param_dict = dict(
     act = ['linear'],
     dropout = [(0, 0)],#, (0, 0), (.5, 0)],
     kernelsize = [[3, 1]],
-    layers_no = [7],
+    layers_no = [{'sigs': 10, 'offs': 2}, {'sigs': 4, 'offs': 10}, {'sigs': 2, 'offs': 10}],
     poolsize = [None],
-    architecture = [{'softmax': True, 'lambda': False, 'nonneg': False}],
+    architecture = [{'softmax': False, 'lambda': True, 'nonneg': False}, {'softmax': True, 'lambda': False, 'nonneg': False}],
     batch_size = [128],
     objective=['regr'],
     norm = [1],
@@ -27,8 +27,8 @@ param_dict = dict(
     aux_weight = [0.05],
     shared_final_weights = [False],
     resnet = [False],
-    diffs = [False, True],
-    dataset = ['data/artificialPT0SS0n100000S12.csv'], #['household.pkl'],# 
+    diffs = [False],
+    dataset = ['household.pkl'],# ['data/artificialPT0SS0n100000S12.csv'], #
     target_cols = ['all']
     )
 
@@ -40,10 +40,10 @@ param_dict = dict(
 
 if 'household' in param_dict['dataset'][0]:
     from household_data_utils import HouseholdGenerator as gen
-    save_file = 'results/cvi.pkl' #'results/cnn2.pkl' #
+    save_file = 'results/cvi2.pkl' #'results/cnn2.pkl' #
 elif 'artificial' in param_dict['dataset'][0]:
     from artificial_data_utils import ArtificialGenerator as gen
-    save_file = 'results/artificial_cvi.pkl' #'results/cnn2.pkl' #
+    save_file = 'results/artificial_cvi2.pkl' #'results/cnn2.pkl' #
 
 def VI(datasource, params):
     globals().update(params)
@@ -63,11 +63,11 @@ def VI(datasource, params):
     sigs = [inp]
     loop_layers = {}
     
-    for j in range(layers_no):
+    for j in range(layers_no['sigs']):
         # significance
         name = 'significance' + str(j+1)
         ks = kernelsize[j % len(kernelsize)] if (type(kernelsize) == list) else kernelsize
-        loop_layers[name] = Convolution1D(filters if (j < layers_no - 1) else len(cols), 
+        loop_layers[name] = Convolution1D(filters if (j < layers_no['sigs'] - 1) else len(cols), 
                                           filter_length=ks, border_mode='same', 
                                           activation='linear', name=name,
                                           W_constraint=maxnorm(norm))
@@ -83,10 +83,11 @@ def VI(datasource, params):
                        
         loop_layers[name + 'act'] = LeakyReLU(alpha=.1, name=name + 'act') if (act == 'leakyrelu') else Activation(act, name=name + 'act')
         sigs.append(loop_layers[name + 'act'](sigs[-1]))
-        
+    
+    for j in range(layers_no['offs']):
         # offset
         name = 'offset' + str(j+1)
-        loop_layers[name] = Convolution1D(filters if (j < layers_no - 1) else len(cols),
+        loop_layers[name] = Convolution1D(filters if (j < layers_no['offs'] - 1) else len(cols),
                                           filter_length=1, border_mode='same', 
                                           activation='linear', name=name,
                                           W_constraint=maxnorm(norm))
@@ -104,9 +105,9 @@ def VI(datasource, params):
         offsets.append(loop_layers[name + 'act'](offsets[-1]))
         
         # offset -> significance connection
-        if connection_freq > 0:
-            if ((j+1) % connection_freq == 0) and (j+1 < layers_no):    
-                sigs.append(merge([offsets[-1], sigs[-1]], mode='concat', concat_axis=-1, name='concat' + str(j+1)))
+#        if connection_freq > 0:
+#            if ((j+1) % connection_freq == 0) and (j+1 < layers_no):    
+#                sigs.append(merge([offsets[-1], sigs[-1]], mode='concat', concat_axis=-1, name='concat' + str(j+1)))
             
     value_output = merge([offsets[-1], value_input], mode='sum', concat_axis=-1, name='value_output')
 
@@ -114,8 +115,12 @@ def VI(datasource, params):
 
     sig = Permute((2,1))(sigs[-1])
 #    sig = TimeDistributed(Dense(input_length, activation='softmax'), name='softmax')(sig) ## SHOULD BE UNNECESSARY, GAVE GOOD RESULTS. SIMILAR PERFORMANCE WITHOUT.
-    sig = TimeDistributed(Activation('softmax'), name='softmax')(sig)
-    
+    if architecture['softmax']:    
+        sig = TimeDistributed(Activation('softmax'), name='softmax')(sig)
+    elif architecture['lambda']:    
+        sig = TimeDistributed(Activation('relu'), name='relulambda')(sig)
+        sig = TimeDistributed(Lambda(lambda x: x/K.sum(x, axis=-1, keepdims=True)), name='lambda')(sig)
+        
     main = merge([sig, value], mode='mul', concat_axis=-1, name='significancemerge')
     if shared_final_weights:
         out = TimeDistributed(Dense(output_length, activation='linear', bias=False,
@@ -144,7 +149,7 @@ def VI(datasource, params):
     hist = nn.fit_generator(
         train_gen,
         samples_per_epoch = G.n_train - length,
-        nb_epoch=7,
+        nb_epoch=1000,
         callbacks=[reducer],
     #            callbacks=[callback, keras.callbacks.EarlyStopping(monitor='val_loss', patience=patience)],
         validation_data=valid_gen,
