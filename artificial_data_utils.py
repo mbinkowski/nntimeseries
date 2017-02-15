@@ -92,7 +92,7 @@ class NoisySignal(object):
     def _compute_noises(self):
         noises = []    
         for i in range(self.sources):
-            scale = 2.0**((-i//4 - 4))
+            scale = 2.0**((- i//8))
             if i%4 == 0:
                 noises.append(BinaryNoise(additive=True, scale=scale))
             elif i%4 == 1:
@@ -106,7 +106,7 @@ class NoisySignal(object):
         X[:, 0] = self.x
 
         if self.single_source:
-            frequencies = 2.0**np.arange(self.sources)
+            frequencies = 1.1**np.arange(self.sources)
             frequencies /= frequencies.sum()
             choice = np.random.choice(a=np.arange(self.sources), size=self.N, p=frequencies)
             for i, noise in enumerate(noises):
@@ -136,10 +136,10 @@ class NoisySignal(object):
         
     def save(self, filepath='data/artificial'):
         filepath += self.__name__()
-        print('Saving to .pickle and .csv')
+        print('Saving to .csv')
         self.df.to_csv(filepath + '.csv')
-        with open(filepath + '.pickle', 'wb') as f:
-            pickle.dump(self, f)
+#        with open(filepath + '.pickle', 'wb') as f:
+#            pickle.dump(self, f)
             
     def __call__(self):
         return self.df
@@ -151,6 +151,9 @@ class ArtificialGenerator(Generator):
                  limit=np.inf, batch_size=16, diffs=False):
         self.filename = filename
         X = pd.read_csv(filename, index_col=0)
+        if 'valid' in X.columns:
+            X = X.loc[X['valid'] > 0, [c for c in X.columns if 'valid' not in c]]
+            X.reset_index(inplace=True, drop=True)
         super(ArtificialGenerator, self).__init__(X, train_share=train_share, 
                                                   input_length=input_length, 
                                                   output_length=output_length, 
@@ -165,3 +168,19 @@ class ArtificialGenerator(Generator):
                                                              input_cols=input_cols)
     def get_dim(self):
         return super(ArtificialGenerator, self).get_dim() - 1
+        
+    def get_target_cols(self, ids=True):
+        if 'SS0' in self.filename:
+            return [(i if ids else c) for i, c in enumerate(self.cols)]
+        elif 'SS1' in self.filename:
+            return [0 if ids else self.cols[0]]
+        else:
+            raise Exception('Filename does not indicate target columns')
+            
+    def _scale(self, exclude=None, exclude_diff=['duration']):
+        if self.diffs and ('SS1' in self.filename):
+            if exclude_diff is None:
+                exclude_diff = ['duration']
+            exclude_diff += [c for c in self.cols if c not in ['original', 'noisy', 'duration']]
+        super(ArtificialGenerator, self)._scale(exclude=exclude,
+                                                exclude_diff=exclude_diff)

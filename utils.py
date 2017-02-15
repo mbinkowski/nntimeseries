@@ -75,7 +75,8 @@ class ModelRunner(object):
                          'dt': datetime.datetime.now(),
                          'date': datetime.date.today().isoformat(),
                          'data': data,
-                         'hdf5': hdf5_name
+                         'hdf5': hdf5_name,
+                         'total_params': np.sum([np.sum([np.prod(K.eval(w).shape) for w in l.trainable_weights]) for l in nn.layers])
 #                             'json': nn.to_json(),
 #                             'model_params': reducer.saved_layers
                          }
@@ -126,25 +127,37 @@ class Generator(object):
     def get_dim(self):
         return self.asarray().shape[1]
 
-    def get_target_cols(self, ids=True):
-        if ids:
-            return np.arange(len(self.cols))
+    def get_target_cols(self, ids=True, cols='default'):
+        if cols in ['default', 'all']:
+            if ids:
+                return np.arange(len(self.cols))
+            else:
+                return self.cols
+        elif type(cols) == list:
+            if type(cols[0]) == str:
+                return [(i if ids else c) for i, c in enumerate(self.cols) if c in cols]
+            elif type(cols[0]) in [int, float]:
+                return [(int(i) if ids else self.cols[int(i)]) for i in cols]
+            else:
+                raise Exception('cols = ' + repr(cols) + ' not supported')
         else:
-            return self.cols
+            raise Exception('cols = ' + repr(cols) + ' not supported')
+
         
     def exclude_columns(self, cols):
         self.excluded += cols
         
-    def _scale(self, exclude=None):
+    def _scale(self, exclude=None, exclude_diff=None):
         if exclude is None:
             exclude = self.excluded
         cols = [c for c in self.X.columns if c not in exclude]
         if self.diffs:
-            self.X.loc[:, cols] = self.X.loc[:, cols].diff()
+            diff_cols = [c for c in self.X.columns if c not in exclude_diff]
+            self.X.loc[:, diff_cols] = self.X.loc[:, diff_cols].diff()
             self.X = self.X.loc[self.X.index[1:]]
         self.means = self.X.loc[:self.n_train, cols].mean(axis=0)
         self.stds = self.X.loc[:self.n_train, cols].std(axis=0)
-        self.X.loc[:, cols] = (self.X[cols] - self.means)/self.stds
+        self.X.loc[:, cols] = (self.X[cols] - self.means)/(self.stds + (self.stds == 0)*.001)
         
     def gen(self, mode='train', batch_size=None, func=None, shuffle=True, 
             n_start=0, n_end=np.inf):
@@ -183,6 +196,7 @@ class Generator(object):
                 x.append(XX[i - self.input_length: i + self.output_length, :])
     
     def make_io_func(self, io_form, cols=[0], input_cols=None):
+        cols = self.get_target_cols(cols)
         il = self.input_length
         if io_form == 'regression':
             def regr(x):

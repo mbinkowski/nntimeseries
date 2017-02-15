@@ -3,18 +3,18 @@ os.chdir('C://Users//mbinkowski//cdsol-r-d.cluster//cdsol-r-d.machine_learning_s
 import utils
 
 
-log=False
+log=True
 
 param_dict = dict(
     verbose = [1 + int(log)],
-    train_share = [(.1, .13), (.8, 1.)],
+    train_share = [(.8, 1.)],
     input_length = [60],
     output_length = [1],
     patience = [5],
-    filters = [16],
+    filters = [32, 16],
     act = ['linear'],
     dropout = [(0, )],#, (0, 0), (.5, 0)],
-    kernelsize = [[1, 3], 3],
+    kernelsize = [[3, 1]],
     poolsize = [2],
     layers_no = [10],
     batch_size = [128],
@@ -22,17 +22,18 @@ param_dict = dict(
     norm = [1],
     maxpooling = [3], #maxpool frequency
     resnet = [False],
-    diffs = [False],
-    dataset = ['household.pkl'], #['data/artificialPT0SS0n100000S12.csv'],#
-    target_cols=['all']
+    dataset = ['data/artificialET1SS1n100000S16.csv', 'data/artificialET1SS0n100000S16.csv', 
+               'data/artificialET1SS1n50000S64.csv', 'data/artificialET1SS0n50000S64.csv'],#['household.pkl'], #
+    diffs = [False, True],               
+    target_cols=['default']
 )
 
 if 'household' in param_dict['dataset'][0]:
     from household_data_utils import HouseholdGenerator as gen
-    save_file = 'results/cvi.pkl' #'results/cnn2.pkl' #
+    save_file = 'results/household_cnn.pkl' #'results/cnn2.pkl' #
 elif 'artificial' in param_dict['dataset'][0]:
     from artificial_data_utils import ArtificialGenerator as gen
-    save_file = 'results/artificial_cvi.pkl' #'results/cnn2.pkl' #
+    save_file = 'results/' + param_dict['dataset'][0].split('.')[0].split('/')[1] + '_cnn.pkl' #'results/cnn2.pkl' #
 
 def CNN(datasource, params):
     globals().update(params)
@@ -42,8 +43,8 @@ def CNN(datasource, params):
             batch_size=batch_size, diffs=diffs)
     
     dim = G.get_dim()
-    cols = G.get_target_cols() if (target_cols == 'all') else [i for i, c in enumerate(G.X.columns) if c in target_cols]
-    regr_func = G.make_io_func(io_form='regression', cols=cols)
+    cols = G.get_target_cols()
+    regr_func = G.make_io_func(io_form='regression', cols=target_cols)
 
     # theano.config.compute_test_value = 'off'
     # valu.tag.test_value
@@ -89,7 +90,7 @@ def CNN(datasource, params):
 
     train_gen = G.gen('train', func=regr_func)
     valid_gen = G.gen('valid', func=regr_func)
-    reducer = LrReducer(patience=patience, reduce_rate=.1, reduce_nb=2, verbose=1, monitor='val_loss', restore_best=True)
+    reducer = LrReducer(patience=patience, reduce_rate=.1, reduce_nb=3, verbose=1, monitor='val_loss', restore_best=True)
     
     print('Total model parameters: %d' % int(np.sum([np.sum([np.prod(K.eval(w).shape) for w in l.trainable_weights]) for l in nn.layers])))
     

@@ -4,32 +4,33 @@ from __init__ import *
 import utils
 import household_data_utils as hdu
 
-log=False
+log=True
 
 param_dict = dict(
     verbose = [1 + int(log)],
-    train_share = [(.1, .13)],
+    train_share = [(.8, 1.)],
     input_length = [60],
     output_length = [1],
     patience = [5],
     filters = [16],
     act = ['linear'],
     dropout = [(0, 0)],#, (0, 0), (.5, 0)],
-    kernelsize = [[3, 1]],
+    kernelsize = [3, [3, 1]],
     layers_no = [7],
     poolsize = [None],
-    architecture = [{'softmax': True, 'lambda': False, 'nonneg': False}],
+    architecture = [{'softmax': True, 'lambda': False, 'nonneg': False}, {'softmax': False, 'lambda': True, 'nonneg': False}],
     batch_size = [128],
     objective=['regr'],
     norm = [1],
     nonnegative = [False],
     connection_freq = [2],
-    aux_weight = [0.05],
+    aux_weight = [0.01],
     shared_final_weights = [False],
     resnet = [False],
-    diffs = [False, True],
-    dataset = ['data/artificialPT0SS0n100000S12.csv'], #['household.pkl'],# 
-    target_cols = ['all']
+    dataset = ['data/artificialET1SS1n100000S16.csv', 'data/artificialET1SS0n100000S16.csv', 
+               'data/artificialET1SS1n50000S64.csv', 'data/artificialET1SS0n50000S64.csv'],
+    diffs = [False, True],               
+    target_cols = ['default']
     )
 
 #target_cols=[['original', 'source0', 'source1', 'source2', 'source3', 'source4',
@@ -40,10 +41,10 @@ param_dict = dict(
 
 if 'household' in param_dict['dataset'][0]:
     from household_data_utils import HouseholdGenerator as gen
-    save_file = 'results/cvi.pkl' #'results/cnn2.pkl' #
+    save_file = 'results/household_cvi.pkl' #'results/cnn2.pkl' #
 elif 'artificial' in param_dict['dataset'][0]:
     from artificial_data_utils import ArtificialGenerator as gen
-    save_file = 'results/artificial_cvi.pkl' #'results/cnn2.pkl' #
+    save_file = 'results/' + param_dict['dataset'][0].split('.')[0].split('/')[1] + '_cvi.2.pkl' #'results/cnn2.pkl' #
 
 def VI(datasource, params):
     globals().update(params)
@@ -53,8 +54,8 @@ def VI(datasource, params):
             batch_size=batch_size, diffs=diffs)
     
     dim = G.get_dim()
-    cols = G.get_target_cols() if (target_cols == 'all') else [i for i, c in enumerate(G.cols) if c in target_cols]
-    regr_func = G.make_io_func(io_form='cvi_regression', cols=cols)
+    cols = G.get_target_cols()
+    regr_func = G.make_io_func(io_form='cvi_regression', cols=target_cols)
 
     inp = Input(shape=(input_length, dim), dtype='float32', name='inp')
     value_input = Input(shape=(input_length, len(cols)), dtype='float32', name='value_input')
@@ -144,7 +145,7 @@ def VI(datasource, params):
     hist = nn.fit_generator(
         train_gen,
         samples_per_epoch = G.n_train - length,
-        nb_epoch=7,
+        nb_epoch=1000,
         callbacks=[reducer],
     #            callbacks=[callback, keras.callbacks.EarlyStopping(monitor='val_loss', patience=patience)],
         validation_data=valid_gen,
