@@ -42,7 +42,7 @@ class ModelRunner(object):
         code = ''.join(np.random.choice([l for l in string.ascii_uppercase], 5))
         return '%s/%06d_%s_%s_RunMod.h5' % (self.hdf5_dir, n, t, code)
     
-    def run(self, trials=3, log=False):
+    def run(self, trials=3, log=False, read_file=None, limit=1, irrelevant=[]):
         if log:
             old_stdout = sys.stdout
             log_name = self.save_file.replace('results', 'logs')[:-4]   
@@ -52,42 +52,55 @@ class ModelRunner(object):
         unsuccessful_settings = []
         for params in self.param_list:
             for data in self.data_list:
-                success = -trials
+                if limit < np.inf:
+                    already_computed = self.lookup_setting(read_file=read_file,
+                                                           params=params, data=data,
+                                                           irrelevant=irrelevant)
+                    if already_computed >= limit:
+                        print('Found %d (>= limit = %d) computed results for the setting:' % (already_computed, limit))
+                        print([data, params])
+                        continue
+                    else:
+                        required_success = limit - already_computed
+                        print('Found %d (< limit = %d) computed results for the setting.' % (already_computed, limit))
+                else:
+                    required_success = 1
+                success, errors = 0, 0
                 setting_time = time.time()
-                while success < 0:
-#                    try:
-                    print(data + ' success: ' + repr(success))
-                    print(params)
-                    self.cdata = data
-                    self.cp = params
-                    history, nn, reducer = self.model(data, params)
-                    self.nn = nn
-                    self.reducer = reducer
-                    self.history = history
-                    model_results = history.history
-                    model_results.update(params)
-                    hdf5_name = self._get_hdf5_name()
-                    print('setting time %.2f' % (time.time() - setting_time))
-                    nn.save(hdf5_name)
-                    model_results.update(
-                        {'training_time': time.time() - setting_time,
-                         'datetime': datetime.datetime.now().isoformat(),
-                         'dt': datetime.datetime.now(),
-                         'date': datetime.date.today().isoformat(),
-                         'data': data,
-                         'hdf5': hdf5_name,
-                         'total_params': np.sum([np.sum([np.prod(K.eval(w).shape) for w in l.trainable_weights]) for l in nn.layers])
-#                             'json': nn.to_json(),
-#                             'model_params': reducer.saved_layers
-                         }
-                    )
-                    self.cresults.append(model_results)
-                    pd.DataFrame(self.cresults).to_pickle(self.save_file)
-                    success = 1
-#                    except Exception as e:
-#                        success += 1
-#                        print(e)
-                if success < 1:
+                while (errors < trials) and (success < required_success):
+                    try:
+                        print(data + ' success: %d, errors: %d' % (success, errors))
+                        print(params)
+                        self.cdata = data
+                        self.cp = params
+                        history, nn, reducer = self.model(data, params)
+                        self.nn = nn
+                        self.reducer = reducer
+                        self.history = history
+                        model_results = history.history
+                        model_results.update(params)
+                        hdf5_name = self._get_hdf5_name()
+                        print('setting time %.2f' % (time.time() - setting_time))
+                        nn.save(hdf5_name)
+                        model_results.update(
+                            {'training_time': time.time() - setting_time,
+                             'datetime': datetime.datetime.now().isoformat(),
+                             'dt': datetime.datetime.now(),
+                             'date': datetime.date.today().isoformat(),
+                             'data': data,
+                             'hdf5': hdf5_name,
+                             'total_params': np.sum([np.sum([np.prod(K.eval(w).shape) for w in l.trainable_weights]) for l in nn.layers])
+    #                             'json': nn.to_json(),
+    #                             'model_params': reducer.saved_layers
+                             }
+                        )
+                        self.cresults.append(model_results)
+                        pd.DataFrame(self.cresults).to_pickle(self.save_file)
+                        success += 1
+                    except Exception as e:
+                        errors += 1
+                        print(e)
+                if success < required_success:
                     unsuccessful_settings.append([data, params])
         #    with open(save_file, 'wb') as f:
         #        pickle.dump(results, f)
@@ -97,7 +110,31 @@ class ModelRunner(object):
             sys.stdout = old_stdout
             log_file.close()
         return self.cresults
-
+        
+    def lookup_setting(self, read_file, params, data, irrelevant):
+        if read_file is None:
+            already_computed = self.cresults
+            print(1)
+        else:
+            already_computed = [v for k, v in pd.read_pickle(read_file).T.to_dict().items()]
+            print(2)
+        count = 0
+        print(3)
+        for res in already_computed:
+            if res['data'] != data:
+                continue
+            par_ok = 1
+            for k, v in params.items():
+                if k in irrelevant:
+                    continue
+                if k not in res:
+                    par_ok = 0
+                    break
+                if res[k] != v:
+                    par_ok = 0
+                    break
+            count += par_ok
+        return count
 
 class Generator(object):
     def __init__(self, X, train_share=(.8, 1), input_length=1, output_length=1, 

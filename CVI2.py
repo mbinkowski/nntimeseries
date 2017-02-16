@@ -15,40 +15,39 @@ param_dict = dict(
     filters = [16],
     act = ['linear'],
     dropout = [(0, 0)],#, (0, 0), (.5, 0)],
-    kernelsize = [[3, 1], 3],
+    kernelsize = [[3, 1]],
     layers_no = [{'sigs': 10, 'offs': 2}],
     poolsize = [None],
-    architecture = [{'softmax': False, 'lambda': True, 'nonneg': False}],
+    architecture = [{'softmax': True, 'lambda': False, 'nonneg': False}, {'softmax': False, 'lambda': True, 'nonneg': False}],
     batch_size = [128],
     objective=['regr'],
     norm = [1],
     nonnegative = [False],
     connection_freq = [2],
-    aux_weight = [0.01],
+    aux_weight = [0.1, 0],
     shared_final_weights = [False],
     resnet = [False],
-    dataset = ['data/artificialET1SS1n100000S16.csv', 'data/artificialET1SS0n100000S16.csv', 
-               'data/artificialET1SS1n50000S64.csv', 'data/artificialET1SS0n50000S64.csv'],# ['data/artificialPT0SS0n100000S12.csv'], #
-    diffs = [False, True],
+    diffs = [False],
     target_cols = ['default']
-    )
-
+)
+dataset = ['data/artificialET1SS1n100000S16.csv', 'data/artificialET1SS0n100000S16.csv', 
+           'data/artificialET1SS1n50000S64.csv', 'data/artificialET1SS0n50000S64.csv']# ['data/artificialPT0SS0n100000S12.csv'] #
 #target_cols=[['original', 'source0', 'source1', 'source2', 'source3', 'source4',
 #                  'source5', 'source6', 'source7', 'source8', 'source9', 'source10',
 #                  'source11']] #['Global_active_power', 'Global_reactive_power', 'Voltage',
 #             #     'Global_intensity', 'Sub_metering_1', 'Sub_metering_2',
 #              #    'Sub_metering_3']],
 
-if 'household' in param_dict['dataset'][0]:
+if 'household' in dataset[0]:
     from household_data_utils import HouseholdGenerator as gen
-    save_file = 'results/household_cvi2.pkl' #'results/cnn2.pkl' #
-elif 'artificial' in param_dict['dataset'][0]:
+    save_file = 'results/household_cvi2.2.pkl' #'results/cnn2.pkl' #
+elif 'artificial' in dataset[0]:
     from artificial_data_utils import ArtificialGenerator as gen
-    save_file = 'results/' + param_dict['dataset'][0].split('.')[0].split('/')[1] + '_cvi2.pkl' #'results/cnn2.pkl' #
+    save_file = 'results/' + dataset[0].split('.')[0].split('/')[1] + '_cvi2.2.pkl' #'results/cnn2.pkl' #
 
 def VI(datasource, params):
     globals().update(params)
-    G = gen(filename=dataset, train_share=train_share, 
+    G = gen(filename=datasource, train_share=train_share, 
             input_length=input_length, 
             output_length=output_length, verbose=verbose,
             batch_size=batch_size, diffs=diffs)
@@ -159,5 +158,5 @@ def VI(datasource, params):
     )    
     return hist, nn, reducer
     
-runner = utils.ModelRunner(param_dict, param_dict['dataset'], VI, save_file)
-runner.run(log=log)
+runner = utils.ModelRunner(param_dict, dataset, VI, save_file)
+runner.run(log=log, limit=1)

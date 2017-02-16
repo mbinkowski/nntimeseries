@@ -22,22 +22,22 @@ param_dict = dict(
     norm = [1],
     maxpooling = [3], #maxpool frequency
     resnet = [False],
-    dataset = ['data/artificialET1SS1n100000S16.csv', 'data/artificialET1SS0n100000S16.csv', 
-               'data/artificialET1SS1n50000S64.csv', 'data/artificialET1SS0n50000S64.csv'],#['household.pkl'], #
     diffs = [False, True],               
     target_cols=['default']
 )
-
-if 'household' in param_dict['dataset'][0]:
+dataset = ['data/artificialET1SS1n100000S16.csv', 'data/artificialET1SS0n100000S16.csv', 
+           'data/artificialET1SS1n50000S64.csv', 'data/artificialET1SS0n50000S64.csv']#['household.pkl'] #
+               
+if 'household' in dataset[0]:
     from household_data_utils import HouseholdGenerator as gen
     save_file = 'results/household_cnn.pkl' #'results/cnn2.pkl' #
-elif 'artificial' in param_dict['dataset'][0]:
+elif 'artificial' in dataset[0]:
     from artificial_data_utils import ArtificialGenerator as gen
-    save_file = 'results/' + param_dict['dataset'][0].split('.')[0].split('/')[1] + '_cnn.pkl' #'results/cnn2.pkl' #
+    save_file = 'results/' + dataset[0].split('.')[0].split('/')[1] + '_cnn.pkl' #'results/cnn2.pkl' #
 
 def CNN(datasource, params):
     globals().update(params)
-    G = gen(filename=dataset, train_share=train_share,
+    G = gen(filename=datasource, train_share=train_share,
             input_length=input_length, 
             output_length=output_length, verbose=verbose,
             batch_size=batch_size, diffs=diffs)
@@ -107,5 +107,5 @@ def CNN(datasource, params):
     )    
     return hist, nn, reducer
     
-runner = utils.ModelRunner(param_dict, param_dict['dataset'], CNN, save_file)
-runner.run(log=log)
+runner = utils.ModelRunner(param_dict, dataset, CNN, save_file)
+runner.run(log=log, limit=1)
