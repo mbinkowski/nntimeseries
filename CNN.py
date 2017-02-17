@@ -11,7 +11,7 @@ param_dict = dict(
     input_length = [60],
     output_length = [1],
     patience = [5],
-    filters = [32, 16],
+    filters = [32],
     act = ['linear'],
     dropout = [(0, )],#, (0, 0), (.5, 0)],
     kernelsize = [[3, 1]],
@@ -22,7 +22,7 @@ param_dict = dict(
     norm = [1],
     maxpooling = [3], #maxpool frequency
     resnet = [False],
-    diffs = [False, True],               
+    diffs = [False],               
     target_cols=['default']
 )
 dataset = ['data/artificialET1SS1n100000S16.csv', 'data/artificialET1SS0n100000S16.csv', 
@@ -33,7 +33,7 @@ if 'household' in dataset[0]:
     save_file = 'results/household_cnn.pkl' #'results/cnn2.pkl' #
 elif 'artificial' in dataset[0]:
     from artificial_data_utils import ArtificialGenerator as gen
-    save_file = 'results/' + dataset[0].split('.')[0].split('/')[1] + '_cnn.pkl' #'results/cnn2.pkl' #
+    save_file = 'results/' + dataset[0].split('.')[0].split('/')[1] + '_cnn.2.pkl' #'results/cnn2.pkl' #
 
 def CNN(datasource, params):
     globals().update(params)

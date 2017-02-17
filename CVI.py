@@ -27,7 +27,7 @@ param_dict = dict(
     aux_weight = [0.01],
     shared_final_weights = [False],
     resnet = [False],
-    diffs = [False, True],               
+    diffs = [False],               
     target_cols = ['default']
 )
 

@@ -5,7 +5,7 @@ import utils
 import household_data_utils as hdu
 
 log=True
-
+ ##### WARNING: READING CNN FILE BELOW !!!!!!!
 param_dict = dict(
     verbose = [1 + int(log)],
     train_share = [(.8, 1.)],
@@ -15,16 +15,16 @@ param_dict = dict(
     filters = [16],
     act = ['linear'],
     dropout = [(0, 0)],#, (0, 0), (.5, 0)],
-    kernelsize = [[3, 1]],
-    layers_no = [{'sigs': 10, 'offs': 2}],
+    kernelsize = [3, [3,1]],
+    layers_no = [{'sigs': 10, 'offs': 5}, {'sigs': 10, 'offs': 2}, {'sigs': 10, 'offs': 1}],
     poolsize = [None],
-    architecture = [{'softmax': True, 'lambda': False, 'nonneg': False}, {'softmax': False, 'lambda': True, 'nonneg': False}],
+    architecture = [{'softmax': True, 'lambda': False, 'nonneg': False}],#, {'softmax': False, 'lambda': True, 'nonneg': False}],
     batch_size = [128],
     objective=['regr'],
     norm = [1],
     nonnegative = [False],
     connection_freq = [2],
-    aux_weight = [0.1, 0],
+    aux_weight = [0.1, 0.01, 0.0],
     shared_final_weights = [False],
     resnet = [False],
     diffs = [False],
@@ -43,7 +43,7 @@ if 'household' in dataset[0]:
     save_file = 'results/household_cvi2.2.pkl' #'results/cnn2.pkl' #
 elif 'artificial' in dataset[0]:
     from artificial_data_utils import ArtificialGenerator as gen
-    save_file = 'results/' + dataset[0].split('.')[0].split('/')[1] + '_cvi2.2.pkl' #'results/cnn2.pkl' #
+    save_file = 'results/' + dataset[0].split('.')[0].split('/')[1] + '_cvi2.4.pkl' #'results/cnn2.pkl' #
 
 def VI(datasource, params):
     globals().update(params)
@@ -159,4 +159,7 @@ def VI(datasource, params):
     return hist, nn, reducer
     
 runner = utils.ModelRunner(param_dict, dataset, VI, save_file)
-runner.run(log=log, limit=1)
+runner.run(log=log, limit=2, read_file='results/all_results.pkl')
+
+
+from CNN import *

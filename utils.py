@@ -68,38 +68,38 @@ class ModelRunner(object):
                 success, errors = 0, 0
                 setting_time = time.time()
                 while (errors < trials) and (success < required_success):
-                    try:
-                        print(data + ' success: %d, errors: %d' % (success, errors))
-                        print(params)
-                        self.cdata = data
-                        self.cp = params
-                        history, nn, reducer = self.model(data, params)
-                        self.nn = nn
-                        self.reducer = reducer
-                        self.history = history
-                        model_results = history.history
-                        model_results.update(params)
-                        hdf5_name = self._get_hdf5_name()
-                        print('setting time %.2f' % (time.time() - setting_time))
-                        nn.save(hdf5_name)
-                        model_results.update(
-                            {'training_time': time.time() - setting_time,
-                             'datetime': datetime.datetime.now().isoformat(),
-                             'dt': datetime.datetime.now(),
-                             'date': datetime.date.today().isoformat(),
-                             'data': data,
-                             'hdf5': hdf5_name,
-                             'total_params': np.sum([np.sum([np.prod(K.eval(w).shape) for w in l.trainable_weights]) for l in nn.layers])
-    #                             'json': nn.to_json(),
-    #                             'model_params': reducer.saved_layers
-                             }
-                        )
-                        self.cresults.append(model_results)
-                        pd.DataFrame(self.cresults).to_pickle(self.save_file)
-                        success += 1
-                    except Exception as e:
-                        errors += 1
-                        print(e)
+#                    try:
+                    print(data + ' success: %d, errors: %d' % (success, errors))
+                    print(params)
+                    self.cdata = data
+                    self.cp = params
+                    history, nn, reducer = self.model(data, params)
+                    self.nn = nn
+                    self.reducer = reducer
+                    self.history = history
+                    model_results = history.history
+                    model_results.update(params)
+                    hdf5_name = self._get_hdf5_name()
+                    print('setting time %.2f' % (time.time() - setting_time))
+                    nn.save(hdf5_name)
+                    model_results.update(
+                        {'training_time': time.time() - setting_time,
+                         'datetime': datetime.datetime.now().isoformat(),
+                         'dt': datetime.datetime.now(),
+                         'date': datetime.date.today().isoformat(),
+                         'data': data,
+                         'hdf5': hdf5_name,
+                         'total_params': np.sum([np.sum([np.prod(K.eval(w).shape) for w in l.trainable_weights]) for l in nn.layers])
+#                             'json': nn.to_json(),
+#                             'model_params': reducer.saved_layers
+                         }
+                    )
+                    self.cresults.append(model_results)
+                    pd.DataFrame(self.cresults).to_pickle(self.save_file)
+                    success += 1
+#                    except Exception as e:
+#                        errors += 1
+#                        print(e)
                 if success < required_success:
                     unsuccessful_settings.append([data, params])
         #    with open(save_file, 'wb') as f:
@@ -114,12 +114,9 @@ class ModelRunner(object):
     def lookup_setting(self, read_file, params, data, irrelevant):
         if read_file is None:
             already_computed = self.cresults
-            print(1)
         else:
             already_computed = [v for k, v in pd.read_pickle(read_file).T.to_dict().items()]
-            print(2)
         count = 0
-        print(3)
         for res in already_computed:
             if res['data'] != data:
                 continue
@@ -214,10 +211,11 @@ class Generator(object):
         else:
             raise Exception('invalid mode')
         if not shuffle:
-            if n_end - n_start % batch_size != 0:
-                raise Exception('For non-shuffled input (for RNN) batch_size must divide n_end - n_start')
-            n_start -= self.l - 1
-            n_end -= self.l - 1
+            if (n_end - n_start - self.l) % batch_size != 0:
+                raise Exception('For non-shuffled input (for RNN) batch_size must divide n_end - n_start - self.l')
+            if mode == 'valid':
+                n_start -= self.l - 1
+                n_end -= self.l - 1
         XX = self.asarray()
         x = []
         while True:
