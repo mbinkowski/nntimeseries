@@ -4,10 +4,12 @@ Created on Tue Nov 29 17:59:55 2016
 
 @author: mbinkowski
 """
+#WDIR = 'C://Users//mbinkowski//cdsol-r-d.cluster//cdsol-r-d.machine_learning_studies//nntimeseries'
+#WDIR = '$HOME//nntimesries//'
 
 # settings
 import os 
-os.chdir('C://Users//mbinkowski//cdsol-r-d.cluster//cdsol-r-d.machine_learning_studies//nntimeseries')
+#os.chdir(WDIR)
 for directory in ['logs', 'results']:
     if directory not in os.listdir(os.getcwd()):
         os.mkdir(directory)
@@ -23,7 +25,6 @@ import imp
 import itertools
 from itertools import product as prod
 import pickle
-import dill
 import string
 import datetime
 
