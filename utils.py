@@ -16,17 +16,17 @@ class ModelRunner(object):
         self.param_list = list_of_param_dicts(param_dict)
         self.data_list = data_list
         self.model = model
-        self.save_file = save_file
+        self.save_file = WDIR + '/' + save_file
         self.cdata = None
         self.cp = None
         self.cresults = None
         self.time0 = time.time()
-        self.hdf5_dir = hdf5_dir
-        if hdf5_dir not in os.listdir(os.getcwd()):
-            os.mkdir(hdf5_dir)
+        self.hdf5_dir = WDIR + '/' + hdf5_dir
+        if hdf5_dir not in os.listdir(WDIR):
+            os.mkdir(self.hdf5_dir)
         
     def _read_results(self):
-        if self.save_file.split('/')[1] in os.listdir(self.save_file.split('/')[0]):
+        if self.save_file.split('/')[-1] in os.listdir('/'.join(self.save_file.split('/')[:-1])):
         #    results = []
             results = [v for k, v in pd.read_pickle(self.save_file).T.to_dict().items()]
         else:
@@ -115,7 +115,7 @@ class ModelRunner(object):
         if read_file is None:
             already_computed = self.cresults
         else:
-            already_computed = [v for k, v in pd.read_pickle(read_file).T.to_dict().items()]
+            already_computed = [v for k, v in pd.read_pickle(WDIR + '/' + read_file).T.to_dict().items()]
         count = 0
         for res in already_computed:
             if res['data'] != data:

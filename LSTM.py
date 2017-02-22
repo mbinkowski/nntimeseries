@@ -1,9 +1,9 @@
 from __init__ import *
-os.chdir('C://Users//mbinkowski//cdsol-r-d.cluster//cdsol-r-d.machine_learning_studies//nntimeseries')
+#os.chdir('C://Users//mbinkowski//cdsol-r-d.cluster//cdsol-r-d.machine_learning_studies//nntimeseries')
 import utils
 
 
-log=False
+log=True
 
 param_dict = dict(
     verbose = [1 + int(log)],
@@ -11,7 +11,7 @@ param_dict = dict(
     input_length = [1],
     output_length = [1],
     patience = [5],
-    layer_size = [8],
+    layer_size = [64, 32],
     act = ['linear'],
     dropout = [0],
     layers_no = [1],
@@ -22,7 +22,9 @@ param_dict = dict(
     target_cols=['default']
 )
 dataset = ['data/artificialET1SS1n100000S16.csv', 'data/artificialET1SS0n100000S16.csv', 
-           'data/artificialET1SS1n50000S64.csv', 'data/artificialET1SS0n50000S64.csv']#['household.pkl'] #
+           'data/artificialET1SS1n100000S64.csv', 'data/artificialET1SS0n100000S64.csv',
+           'data/artificialET1SS1n10000S16.csv', 'data/artificialET1SS0n10000S16.csv', 
+           'data/artificialET1SS1n10000S64.csv', 'data/artificialET1SS0n10000S64.csv']#['household.pkl'] #
                
 if 'household' in dataset[0]:
     from household_data_utils import HouseholdGenerator as gen
@@ -60,7 +62,7 @@ def LSTMmodel(datasource, params):
     nn.add(TimeDistributed(Dense(len(cols), W_constraint=maxnorm(norm)), name='tddense'))
     nn.add(Reshape((input_length*len(cols),)))
     
-    nn.compile(optimizer=keras.optimizers.Adam(lr=.0001),
+    nn.compile(optimizer=keras.optimizers.Adam(lr=.001, clipnorm=10.),
                loss='mse') 
 
     train_gen = G.gen('train', func=regr_func, shuffle=False)
@@ -83,4 +85,4 @@ def LSTMmodel(datasource, params):
     return hist, nn, reducer
     
 runner = utils.ModelRunner(param_dict, dataset, LSTMmodel, save_file)
-runner.run(log=log, limit=1)
+runner.run(log=log, limit=10)

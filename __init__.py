@@ -4,13 +4,15 @@ Created on Tue Nov 29 17:59:55 2016
 
 @author: mbinkowski
 """
+#TF_NUM_THREADS = 12 
 #WDIR = 'C://Users//mbinkowski//cdsol-r-d.cluster//cdsol-r-d.machine_learning_studies//nntimeseries'
-#WDIR = '$HOME//nntimesries//'
 
 # settings
 import os 
-#os.chdir(WDIR)
-for directory in ['logs', 'results']:
+WDIR = os.environ['WORK'] + '//nntimeseries/'
+os.chdir(WDIR)
+
+for directory in ['logs', 'results', 'data']:
     if directory not in os.listdir(os.getcwd()):
         os.mkdir(directory)
 import sys 
@@ -53,6 +55,9 @@ from keras import backend as K
 
 if K._BACKEND == 'tensorflow':
     import tensorflow as tf
+#    sess = tf.Session(config=tf.ConfigProto(
+#        intra_op_parallelism_threads=TF_NUM_THREADS))
+#    K.set_session(sess)
 else:
     # theano
     import theano

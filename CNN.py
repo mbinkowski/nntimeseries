@@ -1,5 +1,4 @@
 from __init__ import *
-os.chdir('C://Users//mbinkowski//cdsol-r-d.cluster//cdsol-r-d.machine_learning_studies//nntimeseries')
 import utils
 
 
@@ -10,8 +9,8 @@ param_dict = dict(
     train_share = [(.8, 1.)],
     input_length = [60],
     output_length = [1],
-    patience = [5],
-    filters = [32],
+    patience = [10],
+    filters = [16, 32],
     act = ['linear'],
     dropout = [(0, )],#, (0, 0), (.5, 0)],
     kernelsize = [[3, 1]],
@@ -25,15 +24,20 @@ param_dict = dict(
     diffs = [False],               
     target_cols=['default']
 )
-dataset = ['data/artificialET1SS1n100000S16.csv', 'data/artificialET1SS0n100000S16.csv', 
-           'data/artificialET1SS1n50000S64.csv', 'data/artificialET1SS0n50000S64.csv']#['household.pkl'] #
+dataset = ['household.pkl']
+#dataset = ['data/artificialET1SS1n100000S16.csv', 'data/artificialET1SS0n100000S16.csv', 
+#           'data/artificialET1SS1n100000S64.csv', 'data/artificialET1SS0n100000S64.csv',
+#           'data/artificialET1SS1n50000S64.csv', 'data/artificialET1SS0n50000S64.csv',
+#           'data/artificialET1SS1n10000S16.csv', 'data/artificialET1SS0n10000S16.csv',
+#           'data/artificialET1SS1n10000S64.csv', 'data/artificialET1SS0n10000S64.csv'
+           ]#['household.pkl'] #
                
 if 'household' in dataset[0]:
     from household_data_utils import HouseholdGenerator as gen
     save_file = 'results/household_cnn.pkl' #'results/cnn2.pkl' #
 elif 'artificial' in dataset[0]:
     from artificial_data_utils import ArtificialGenerator as gen
-    save_file = 'results/' + dataset[0].split('.')[0].split('/')[1] + '_cnn.2.pkl' #'results/cnn2.pkl' #
+    save_file = 'results/' + dataset[0].split('.')[0].split('/')[1] + '_cnn.31.pkl' #'results/cnn2.pkl' #
 
 def CNN(datasource, params):
     globals().update(params)

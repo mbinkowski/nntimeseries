@@ -12,8 +12,8 @@ param_dict = dict(
     filters = [16],
     act = ['linear'],
     dropout = [(0, 0)],#, (0, 0), (.5, 0)],
-    kernelsize = [[3, 1]],
-    layers_no = [{'sigs': 10, 'offs': 1}, {'sigs': 10, 'offs': 10}],#, {'sigs': 10, 'offs': 1}],
+    kernelsize = [3, [3,1], 1],
+    layers_no = [{'sigs': 10, 'offs': 2}, {'sigs': 10, 'offs': 1}],
     poolsize = [None],
     architecture = [{'softmax': True, 'lambda': False, 'nonneg': False}, {'softmax': False, 'lambda': True, 'nonneg': False}],#, 
     batch_size = [128],
@@ -21,7 +21,7 @@ param_dict = dict(
     norm = [1],
     nonnegative = [False],
     connection_freq = [2],
-    aux_weight = [0.01],
+    aux_weight = [0.1, 0.01, 0.0],
     shared_final_weights = [False],
     resnet = [False],
     diffs = [False],
@@ -44,7 +44,7 @@ if 'household' in dataset[0]:
     save_file = 'results/household_cvi2.pkl' #'results/cnn2.pkl' #
 elif 'artificial' in dataset[0]:
     from artificial_data_utils import ArtificialGenerator as generator
-    save_file = 'results/' + dataset[0].split('.')[0].split('/')[1] + '_cvi2.14.pkl' #'results/cnn2.pkl' #
+    save_file = 'results/' + dataset[0].split('.')[0].split('/')[1] + '_cvi2.7.pkl' #'results/cnn2.pkl' #
 
 def VI(datasource, params):
     globals().update(params)

@@ -134,9 +134,9 @@ class NoisySignal(object):
     def __name__(self):
         return 'ET' + str(int(self.exponential_time)) + 'SS' + str(int(self.single_source)) + 'n' + str(int(self.n)) + 'S' + str(int(self.sources))
         
-    def save(self, filepath='data/artificial'):
-        filepath += self.__name__()
-        print('Saving to .csv')
+    def save(self, filepath='/data/artificial'):
+        filepath = WDIR + filepath + self.__name__()
+        print('Saving to ' + filepath + '.csv')
         self.df.to_csv(filepath + '.csv')
 #        with open(filepath + '.pickle', 'wb') as f:
 #            pickle.dump(self, f)
@@ -146,11 +146,11 @@ class NoisySignal(object):
 
 
 class ArtificialGenerator(Generator):
-    def __init__(self, filename='data/artificialET0SS0n10000S2.csv', 
-                 train_share=(.8, 1.), input_length=1, output_length=1, verbose=1, 
+    def __init__(self, filename='/data/artificialET0SS0n10000S2.csv',
+		 train_share=(.8, 1.), input_length=1, output_length=1, verbose=1, 
                  limit=np.inf, batch_size=16, diffs=False):
         self.filename = filename
-        X = pd.read_csv(filename, index_col=0)
+        X = pd.read_csv(WDIR + filename, index_col=0)
         if 'valid' in X.columns:
             X = X.loc[X['valid'] > 0, [c for c in X.columns if 'valid' not in c]]
             X.reset_index(inplace=True, drop=True)
