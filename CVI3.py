@@ -12,27 +12,27 @@ param_dict = dict(
     filters = [16],
     act = ['linear'],
     dropout = [(0, 0)],#, (0, 0), (.5, 0)],
-    kernelsize = [3, 1, [1, 3]],
-    layers_no = [{'sigs': 10, 'offs': 2}],
+    kernelsize = [[1, 3]],
+    layers_no = [{'sigs': 10, 'offs': 5}] 
     poolsize = [None],
-    architecture = [{'softmax': True, 'lambda': False, 'nonneg': False}, {'softmax': False, 'lambda': True, 'nonneg': False}],#, 
+    architecture = [{'softmax': False, 'lambda': True, 'nonneg': False}], #{'softmax': False, 'lambda': True, 'nonneg': False}],#, 
     batch_size = [128],
     objective=['regr'],
     norm = [1],
     nonnegative = [False],
     connection_freq = [2],
-    aux_weight = [0., .1, 0.01],
+    aux_weight = [.1],
     shared_final_weights = [False],
     resnet = [False],
     diffs = [False],
     target_cols = ['default']
 )
 #dataset = ['household.pkl']
-dataset = ['data/artificialET1SS1n100000S16.csv', #'data/artificialET1SS0n100000S16.csv',
-           'data/artificialET1SS1n100000S64.csv', #'data/artificialET1SS0n100000S64.csv',
+dataset = ['data/artificialET1SS0n100000S16.csv', 'data/artificialET1SS1n100000S16.csv',
+           'data/artificialET1SS0n100000S64.csv', 'data/artificialET1SS1n100000S64.csv',
          #  'data/artificialET1SS1n50000S64.csv', 'data/artificialET1SS0n50000S64.csv',
-           'data/artificialET1SS1n10000S16.csv', #'data/artificialET1SS1n00000S16.csv',
-           'data/artificialET1SS1n10000S64.csv']#, 'data/artificialET1SS1n00000S64.csv']# ['data/artificialPT0SS0n100000S12.csv'] #
+           'data/artificialET1SS0n10000S16.csv', 'data/artificialET1SS1n10000S16.csv',
+           'data/artificialET1SS0n10000S64.csv', 'data/artificialET1SS1n10000S64.csv']# ['data/artificialPT0SS0n100000S12.csv'] #
 #target_cols=[['original', 'source0', 'source1', 'source2', 'source3', 'source4',
 #                  'source5', 'source6', 'source7', 'source8', 'source9', 'source10',
 #                  'source11']] #['Global_active_power', 'Global_reactive_power', 'Voltage',
@@ -44,7 +44,7 @@ if 'household' in dataset[0]:
     save_file = 'results/household_cvi2.pkl' #'results/cnn2.pkl' #
 elif 'artificial' in dataset[0]:
     from artificial_data_utils import ArtificialGenerator as generator
-    save_file = 'results/' + dataset[0].split('.')[0].split('/')[1] + '_cvi2.30' #'results/cnn2.pkl' #
+    save_file = 'results/' + dataset[0].split('.')[0].split('/')[1] + '_cvi3.3.pkl' #'results/cnn2.pkl' #
 
 def VI(datasource, params):
     globals().update(params)
@@ -88,8 +88,9 @@ def VI(datasource, params):
     for j in range(layers_no['offs']):
         # offset
         name = 'offset' + str(j+1)
+        ks = kernelsize[j % len(kernelsize)] if (type(kernelsize) == list) else kernelsize
         loop_layers[name] = Convolution1D(filters if (j < layers_no['offs'] - 1) else len(cols),
-                                          filter_length=1, border_mode='same', 
+                                          filter_length=ks, border_mode='same', 
                                           activation='linear', name=name,
                                           W_constraint=maxnorm(norm))
         offsets.append(loop_layers[name](offsets[-1]))
@@ -160,5 +161,5 @@ def VI(datasource, params):
     return hist, nn, reducer
     
 runner = utils.ModelRunner(param_dict, dataset, VI, save_file)
-runner.run(log=log, limit=1, read_file='/results/all_results.pkl')
+runner.run(log=log)#, limit=1, read_file='/results/all_results.pkl')
 

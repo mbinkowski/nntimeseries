@@ -11,7 +11,7 @@ param_dict = dict(
     input_length = [1],
     output_length = [1],
     patience = [5],
-    layer_size = [64, 32],
+    layer_size = [16, 32, 64],
     act = ['linear'],
     dropout = [0],
     layers_no = [1],
@@ -31,7 +31,7 @@ if 'household' in dataset[0]:
     save_file = 'results/household_lstm.pkl' #'results/cnn2.pkl' #
 elif 'artificial' in dataset[0]:
     from artificial_data_utils import ArtificialGenerator as gen
-    save_file = 'results/' + dataset[0].split('.')[0].split('/')[1] + '_lstm.pkl' #'results/cnn2.pkl' #
+    save_file = 'results/' + dataset[0].split('.')[0].split('/')[1] + '_lstm_clip1.pkl' #'results/cnn2.pkl' #
 
 def LSTMmodel(datasource, params):
     globals().update(params)
@@ -62,7 +62,7 @@ def LSTMmodel(datasource, params):
     nn.add(TimeDistributed(Dense(len(cols), W_constraint=maxnorm(norm)), name='tddense'))
     nn.add(Reshape((input_length*len(cols),)))
     
-    nn.compile(optimizer=keras.optimizers.Adam(lr=.001, clipnorm=10.),
+    nn.compile(optimizer=keras.optimizers.Adam(lr=.001, clipnorm=1.),
                loss='mse') 
 
     train_gen = G.gen('train', func=regr_func, shuffle=False)
@@ -85,4 +85,4 @@ def LSTMmodel(datasource, params):
     return hist, nn, reducer
     
 runner = utils.ModelRunner(param_dict, dataset, LSTMmodel, save_file)
-runner.run(log=log, limit=10)
+runner.run(log=log, limit=2)

@@ -10,10 +10,10 @@ param_dict = dict(
     input_length = [60],
     output_length = [1],
     patience = [10],
-    filters = [16, 32],
+    filters = [32, 16],
     act = ['linear'],
     dropout = [(0, )],#, (0, 0), (.5, 0)],
-    kernelsize = [[3, 1]],
+    kernelsize = [3],
     poolsize = [2],
     layers_no = [10],
     batch_size = [128],
@@ -24,12 +24,12 @@ param_dict = dict(
     diffs = [False],               
     target_cols=['default']
 )
-dataset = ['household.pkl']
-#dataset = ['data/artificialET1SS1n100000S16.csv', 'data/artificialET1SS0n100000S16.csv', 
-#           'data/artificialET1SS1n100000S64.csv', 'data/artificialET1SS0n100000S64.csv',
+#dataset = ['household.pkl']
+dataset = ['data/artificialET1SS1n100000S16.csv', 'data/artificialET1SS0n100000S16.csv', 
+           'data/artificialET1SS1n100000S64.csv', 'data/artificialET1SS0n100000S64.csv',
 #           'data/artificialET1SS1n50000S64.csv', 'data/artificialET1SS0n50000S64.csv',
-#           'data/artificialET1SS1n10000S16.csv', 'data/artificialET1SS0n10000S16.csv',
-#           'data/artificialET1SS1n10000S64.csv', 'data/artificialET1SS0n10000S64.csv'
+           'data/artificialET1SS1n10000S16.csv', 'data/artificialET1SS0n10000S16.csv',
+           'data/artificialET1SS1n10000S64.csv', 'data/artificialET1SS0n10000S64.csv'
            ]#['household.pkl'] #
                
 if 'household' in dataset[0]:

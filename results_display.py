@@ -7,10 +7,13 @@ files = [f for f in os.listdir('results') if (key in f) and ('.pkl' in f)]
 read_tables = []
 for f in files:
     try:
-        df = pd.read_pickle('results/' + f)
+        df = pd.read_pickle(WDIR + '/results/' + f)
+        print('1, FILE ' + f + ' SHAPE ' + repr(df.shape))
         df = df[df['dt'] > pd.Timestamp(mindate)]
         df['epochs'] = df['loss'].apply(lambda x: len(x))
+        print('2, FILE ' + f + ' SHAPE ' + repr(df.shape))
         df = df[df['epochs'] > 5]
+        print('3, FILE ' + f + ' SHAPE ' + repr(df.shape))
         if df.shape[0] == 0:
             continue
         if 'objective' not in df.columns:
@@ -45,6 +48,8 @@ for f in files:
             df['model'] = 'so3'
         elif ('cvi2' in f) or ('cnnvi2' in f):
             df['model'] = 'cvi2'
+        elif ('cvi3' in f) or ('cnnvi3' in f):
+            df['model'] = 'cvi3'
         elif ('cvi' in f) or ('cnnvi' in f):
             df['model'] = 'cvi'            
         else:
@@ -55,24 +60,24 @@ for f in files:
         if ('class' in f) or all(df['objective'] == 'class'):
             if 'val_main_output_acc' in df.columns:
                 keys.append('val_main_output_acc')
-                funcs.append([np.nanmax, np.nanargmax])
+                funcs.append([np.nanmax, np.nanargmax, [-np.inf]])
                 names.append('best_acc')
             elif 'val_acc' in df.columns:
                 keys.append('val_acc')
-                funcs.append([np.nanmax, np.nanargmax])
+                funcs.append([np.nanmax, np.nanargmax, [-np.inf]])
                 names.append('best_acc')
         if ('regr' in f) or all(df['objective'] == 'regr') :
             if 'val_main_output_loss' in df.columns:
                 keys.append('val_main_output_loss')
-                funcs.append([np.nanmin, np.nanargmin])
+                funcs.append([np.nanmin, np.nanargmin, [np.inf]])
                 names.append('best_mse')
             elif 'val_loss' in df.columns:
                 keys.append('val_loss')
-                funcs.append([np.nanmin, np.nanargmin])        
+                funcs.append([np.nanmin, np.nanargmin, [np.inf]])        
                 names.append('best_mse')
         for k, func, n in zip(keys, funcs, names):
-            df[n] = df[k].apply(lambda x: func[0](x))
-            df['best_epoch'] = df[k].apply(lambda x: func[1](x))
+            df[n] = df[k].apply(lambda x: func[0](x + func[2]))
+            df['best_epoch'] = df[k].apply(lambda x: func[1](x + func[2]))
         df['file'] = ''.join(f.split(key)) if (len(key) > 0) else f
         df['time_per_epoch'] = df['training_time'] / df['epochs']
         df['time_to_best'] = df['best_epoch'] * df['time_per_epoch']
