@@ -1,22 +1,24 @@
-# -*- coding: utf-8 -*-
 """
 Created on Tue Nov 29 17:59:55 2016
 
 @author: mbinkowski
-"""
-#TF_NUM_THREADS = 12 
-#WDIR = 'C://Users//mbinkowski//cdsol-r-d.cluster//cdsol-r-d.machine_learning_studies//nntimeseries'
 
-# settings
+Initialization file. Set the working directory variable WDIR below to 
+the directory where the .py files are stored.
+"""
+
 import os 
-WDIR = os.environ['WORK'] + '//nntimeseries/'
+
+#WDIR = os.environ['WORK'] + '//nntimeseries/'
+WDIR = 'C://Users//mbinkowski//cdsol-r-d.cluster//cdsol-r-d.machine_learning_studies//nntimeseries/'
+
 os.chdir(WDIR)
 
 for directory in ['logs', 'results', 'data']:
     if directory not in os.listdir(os.getcwd()):
         os.mkdir(directory)
 import sys 
-sys.setrecursionlimit(2000)
+sys.setrecursionlimit(2000) # to alleviate some problems with model saving.
 
 # misc
 import numpy as np
@@ -54,10 +56,8 @@ from keras.constraints import unitnorm, nonneg, maxnorm
 from keras import backend as K
 
 if K._BACKEND == 'tensorflow':
+    # tensorflow
     import tensorflow as tf
-#    sess = tf.Session(config=tf.ConfigProto(
-#        intra_op_parallelism_threads=TF_NUM_THREADS))
-#    K.set_session(sess)
 else:
     # theano
     import theano
@@ -67,9 +67,8 @@ else:
     theano.config.blas.ldflags = ''
     ###############################
 
-# contrib
-#from quotebook_utils import *
+
+import utils
 from keras_utils import *
-from utils import *
-#from artificial_utils import *
-#from data import datum
+from model_functions import *
+

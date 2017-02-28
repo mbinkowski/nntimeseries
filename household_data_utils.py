@@ -1,9 +1,14 @@
-# -*- coding: utf-8 -*-
 """
 Created on Thu Dec 15 13:57:01 2016
 
 @author: mbinkowski
+
+This file provides utilities for downloading and generating training and 
+validation samples from household electricity datasetc power consumption dataset
+
+https://archive.ics.uci.edu/ml/datasets/Individual+household+electric+power+consumption
 """
+
 from __init__ import *
 
 def download_and_unzip(url='https://archive.ics.uci.edu/ml/machine-learning-databases/00235/household_power_consumption.zip',
@@ -37,7 +42,11 @@ def download_and_unzip(url='https://archive.ics.uci.edu/ml/machine-learning-data
     os.rmdir(WDIR + '/data/' + tmp)
     return X
     
-class HouseholdGenerator(Generator):
+class HouseholdGenerator(utils.Generator):
+"""
+Class that provides sample generator for Household Electricity Dataset. 
+
+"""
     def __init__(self, filename='household.pkl', 
                  url='https://archive.ics.uci.edu/ml/machine-learning-databases/00235/household_power_consumption.zip',
                  train_share=(.8, 1.), input_length=1, output_length=1, verbose=1, 
@@ -61,6 +70,8 @@ class HouseholdGenerator(Generator):
                                                 excluded=['datetime'],
                                                 diffs=diffs)
 
-    def get_target_cols(self, ids=True):
-        return [(i if ids else c) for i, c in enumerate(self.cols) if 'time' not in c]
-
+    def get_target_col_ids(self, ids=True, cols='default'):
+        if cols in ['all', 'defualt']:
+            cols = self.cols 
+        assert hasattr(cols, '__iter__')
+        return [(i if ids else c) for i, c in enumerate(self.cols) if ('time' not in c) and (c in cols)]

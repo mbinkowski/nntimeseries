@@ -1,14 +1,27 @@
-# -*- coding: utf-8 -*-
 """
 Created on Fri Feb  3 16:43:33 2017
-
 @author: mbinkowski
+
+Utilities for generation of artificial autoregressive series with synchronous 
+and asynchronous observations from many noisy sources.
+
+Includes sample generator for utils.ModelRunner that generates training and 
+validation samples for network training with generated artificial data.
 """
 
 from __init__ import *
     
-    
 class BinaryNoise(object):
+    """
+    Class defining callable object that applies specified binary noise 
+    on the input.
+    Initialization arguments:
+        additive    - True/False (additive/multiplicative noise)
+        scale       - (float) noise scale
+        p           - probability of drawing a smaller out of two values
+        random      - if True, the noise values are drawn from uniform(0,1) 
+                      distribution, otherwise equal to [-scale, scale]
+    """
     def __init__(self, additive=True, scale=.05, p=None, random=False):
         self.additive = additive
         self.scale = scale
@@ -16,6 +29,12 @@ class BinaryNoise(object):
         self.p = np.random.rand() if (p is None) else p
         
     def __call__(self, x):
+        """
+        Arguments:
+            x - (numpy.array) of input data
+        Returns
+            numpy.array with random noise
+        """
         r = np.random.binomial(n=1, p=self.p, size=x.shape)
         adj = self.offset[1] * r + self.offset[0] * (1 - r)
         if self.additive:
@@ -29,11 +48,24 @@ class BinaryNoise(object):
 
 
 class GaussianNoise(object):
+    """
+    Class defining callable object that applies specified Gaussian noise 
+    on the input.
+    Initialization arguments:
+        additive    - True/False (additive/multiplicative noise)
+        scale       - (float) noise scale
+    """
     def __init__(self, additive=True, scale=.05):
         self.additive = additive
         self.scale = scale
     
     def __call__(self, x):
+        """
+        Arguments:
+            x - (numpy.array) of input data
+        Returns
+            numpy.array with random noise
+        """
         adj = np.random.normal(size=x.shape) * self.scale
         if self.additive:
             return x + adj
@@ -45,8 +77,25 @@ class GaussianNoise(object):
         
         
 class NoisySignal(object):
-    def __init__(self, n=10000, sources=2, exponential_time=False, single_source=True, 
-                 order=10, e_sigma=.005, params_sum=.999, 
+    """
+    Class for simulation of artificial noisy multivariate time series.
+    Initialization arguments:
+        n                   - length of series
+        sources             - no of. simluated noisy copies original AR series
+        exponential_time    - (binary) if True, the duration between two 
+                              consecutive observations ha Exp(2) distribution
+        single_source       - if True, at each time only one randomly chosen 
+                              source is observed. Indicators of observed 
+                              sources are available for each observation.
+                              if False all sources are visible
+        params_sum          - sum of randomly chosen AR params
+        filepath            - path of the csv file from which to initialize the 
+                              NoisySignal object
+        save                - if True, saves the simulated series to 
+                              '/data/artificial'
+    """
+    def __init__(self, n=10000, sources=2, exponential_time=False, 
+                 single_source=True, order=10, e_sigma=.005, params_sum=.999, 
                  filepath=None, save=True):
         self.n = n
         self.sources = sources
@@ -145,7 +194,7 @@ class NoisySignal(object):
         return self.df
 
 
-class ArtificialGenerator(Generator):
+class ArtificialGenerator(utils.Generator):
     def __init__(self, filename='/data/artificialET0SS0n10000S2.csv',
 		 train_share=(.8, 1.), input_length=1, output_length=1, verbose=1, 
                  limit=np.inf, batch_size=16, diffs=False):
@@ -169,9 +218,12 @@ class ArtificialGenerator(Generator):
     def get_dim(self):
         return super(ArtificialGenerator, self).get_dim() - 1
         
-    def get_target_cols(self, ids=True):
-        if 'SS0' in self.filename:
-            return [(i if ids else c) for i, c in enumerate(self.cols)]
+    def get_target_col_ids(self, ids=True, cols='default'):
+        if ('SS0' in self.filename) or (cols in ['all', 'defualt']):
+            if cols in ['all', 'defualt']:
+                cols = self.cols
+            assert hasattr(cols, '__iter__')
+            return [(i if ids else c) for i, c in enumerate(self.cols) if c in cols]
         elif 'SS1' in self.filename:
             return [0 if ids else self.cols[0]]
         else:

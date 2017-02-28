@@ -155,14 +155,6 @@ class MyCallback(keras.callbacks.Callback):
         print('\n' + repr(self.params_monitor()))
 
 
-##        
-##        self.callback2(self.nn)
-#        
-    #         self.improvement[0] = epoch
-#        ru = min(1.005, (np.mean(self.improvement[-3:]) + 6.4)/7) * (1 - (sum(self.improvement[-self.early_stop:]) == 0))
-#        self.loss_history['learning_rate'].append(self.loss_history['learning_rate'][-1] * ru)
-
-
     def plot(self):
         plt.gca().cla()
         plt.close()
@@ -207,6 +199,9 @@ class MyCallback(keras.callbacks.Callback):
                 ))
 
 class ResetLSTM(keras.callbacks.Callback):
+    """
+    Class that resets keras model states on epoch begin.
+    """
     def __init__(self, model, propagate=True):
         self.model = model
         self.propagate = propagate
@@ -266,6 +261,9 @@ def def_R2(meanSS):
     
 
 class LrReducer(keras.callbacks.Callback):
+    """ 
+    class to reduce learning rate in keras training procees.
+    """
     def __init__(self, patience=0, reduce_rate=0.5, reduce_nb=10, verbose=1, monitor='val_loss', restore_best=True, reset_states=False):
         super(keras.callbacks.Callback, self).__init__()
         self.patience = patience
