@@ -9,7 +9,7 @@ Initialization file.
 import os 
 from .config import WDIR
 
-for directory in ['logs', 'results', 'data']:
+for directory in ['logs', 'results', 'data', 'tensorboard']:
     if directory not in os.listdir(WDIR):
         os.mkdir(WDIR + directory)
 

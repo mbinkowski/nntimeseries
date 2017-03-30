@@ -29,57 +29,44 @@ param_dict = dict(
 if __name__ == '__main__':
     from _imports_ import *
 
-def LRmodel(datasource, params):
+class LRmodel(utils.Model):
     """
-    Function defines the Linear Regression model structure to be passed to 
-    utils.ModelRunner
-    Aruments:
-        datasource  - correct argument to the generator object construtor
-        params      - the dictionary with all of the model hyperparameters
-    Returns:
-        keras History object, keras Model object, keras_utils.LrReducer object
-    """    
-    globals().update(params)
-    generator = utils.get_generator(datasource)
-    G = generator(filename=datasource, train_share=train_share,
-                  input_length=input_length, 
-                  output_length=output_length, verbose=verbose,
-                  batch_size=batch_size, diffs=diffs)
+    Class defines the Linear Regression model structure to be passed to 
+    utils.ModelRunner.
+    """  
+    def build(self):
+        """
+        Function has to return:
+            nn                 - keras.models.Model object
+            train_gen, val_gen - results from a nnts.utils.Generator.gen method
+            callbacks          - list of keras.callbacks.Callback objects
+        """
+        self.name = "LR"
+        # network architecture
+        inp = Input(shape=(self.input_length * self.idim,), dtype='float32', 
+                    name='value_input')
+        out = Dense(self.output_length * self.odim, activation='softmax')(inp)
+        
+        nn = Model(inputs=inp, outputs=out)
+     
+        # training settings
+        nn.compile(optimizer=keras.optimizers.Adam(lr=self.lr, 
+                                                   clipnorm=self.clipnorm),
+                   loss='mse', metrics=[]) 
     
-    idim, odim = G.get_dims(cols=target_cols)
-
-    inp = Input(shape=(input_length * idim,), dtype='float32', name='value_input')
-    out = Dense(output_length * odim, activation='softmax')(inp)
-    nn = Model(inputs=inp, outputs=out)
- 
-    # training settings
-    nn.compile(optimizer=keras.optimizers.Adam(lr=lr, clipnorm=clipnorm),
-               loss='mse',
-               metrics=[]) 
-
-    regr_func = G.make_io_func(io_form='flat_regression', cols=target_cols)
-    train_gen = G.gen('train', func=regr_func)
-    valid_gen = G.gen('valid', func=regr_func)
+        regr_func = self.G.make_io_func(io_form='flat_regression', 
+                                        cols=self.target_cols)
+        
+        train_gen = self.G.gen('train', func=regr_func)
+        valid_gen = self.G.gen('valid', func=regr_func)
     
-    reducer = keras_utils.LrReducer(patience=patience, reduce_rate=.1, 
-                                    reduce_nb=reduce_nb, verbose=verbose, 
-                                    monitor='val_loss', restore_best=False)
-    
-    print('Total model parameters: %d' % utils.get_param_no(nn))
-    
-    hist = nn.fit_generator(
-        train_gen,
-        steps_per_epoch = (G.n_train - G.l) / batch_size,
-        epochs=1000,
-        callbacks=[reducer],
-        validation_data=valid_gen,
-        validation_steps=(G.n_all - G.n_train - G.l) / batch_size,
-        verbose=verbose
-    )    
-    return hist, nn, reducer
+        callbacks = [keras_utils.LrReducer(patience=self.patience, reduce_rate=.1, 
+                                    reduce_nb=self.reduce_nb, verbose=self.verbose, 
+                                    monitor='val_loss', restore_best=False)]
+        return nn, train_gen, valid_gen, callbacks
 
 # Runs a grid search for the above model    
 if __name__ == '__main__':
     dataset, save_file = utils.parse(sys.argv)
-    runner = utils.ModelRunner(param_dict, dataset, LRmodel, save_file)
-    runner.run(log=log, limit=1)
+    runner = utils.ModelRunner(param_dict, dataset, save_file)
+    runner.run(LRmodel, log=log, limit=1)

@@ -126,5 +126,3 @@ setting = dict(
 
 df0, pivot = get_pivot(setting, all_results, ['total_params', 'time_to_best'])
 print(pivot)
-
-

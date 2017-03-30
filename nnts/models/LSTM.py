@@ -35,73 +35,64 @@ param_dict = dict(
 if __name__ == '__main__':
     from _imports_ import *
     
-def LSTMmodel(datasource, params):
+class LSTMmodel(utils.Model):
     """
-    Function defines the LSTM network structure to be passed to utils.ModelRunner
-    Aruments:
-        datasource  - correct argument to the generator object construtor
-        params      - the dictionary with all of the model hyperparameters
-    Returns:
-        keras History object, keras Model object, keras_utils.LrReducer object
+    Class defines the LSTM network structure to be passed to utils.ModelRunner
     """
-    globals().update(params) # thanks to this we can freely use the hyperparameters by their names
-    generator = utils.get_generator(dataset)
-    G = generator(filename=datasource, train_share=train_share,
-                  input_length=input_length,
-                  output_length=output_length, verbose=verbose,
-                  batch_size=batch_size, diffs=diffs)
+    def build(self):
+        """
+        Function has to return:
+            nn                 - keras.models.Model object
+            train_gen, val_gen - results from a nnts.utils.Generator.gen method
+            callbacks          - list of keras.callbacks.Callback objects
+        """
+        self.name = 'LSTM'
+        # network structure definition
+        nn = Sequential()   
+        batch_input_shape = (self.batch_size, int(self.input_length), self.idim)
+        if self.dropout > 0:
+            nn.add(Dropout(self.dropout, 
+                           batch_input_shape=batch_input_shape,
+                           name='dropout'))
+        nn.add(LSTM(self.layer_size,
+                    batch_input_shape=batch_input_shape,
+                    stateful=True, activation=None,
+                    recurrent_activation='sigmoid', name='lstm',
+                    recurrent_constraint=maxnorm(self.norm),
+                    kernel_constraint=maxnorm(self.norm),
+                    return_sequences=True))
+        if self.act == 'leakyrelu':
+            nn.add(LeakyReLU(alpha=.1, name='lstm_act'))
+        else:
+            nn.add(Activation(self.act, name='lstm_act'))
+        print('odim:' + repr(self.odim))
+        nn.add(TimeDistributed(
+            Dense(self.odim, kernel_constraint=maxnorm(self.norm)), 
+            name='tddense'
+        ))
+    #    nn.add(Reshape((input_length * odim,)))
+    #    nn.add(Flatten(name='flatten'))
+        
+        nn.compile(optimizer=keras.optimizers.Adam(lr=self.lr, 
+                                                   clipnorm=self.clipnorm),
+                   loss='mse') 
     
-    idim, odim = G.get_dims(cols=target_cols)
-
-    # network structure definition
-    nn = Sequential()    
-    if dropout > 0:
-        nn.add(Dropout(dropout, 
-                       batch_input_shape=(batch_size, int(input_length), idim),
-                       name='dropout'))
-    nn.add(LSTM(layer_size,
-                batch_input_shape=(batch_size, int(input_length), idim),
-                stateful=True, activation=None,
-                recurrent_activation='sigmoid', name='lstm',
-                recurrent_constraint=maxnorm(norm),
-                kernel_constraint=maxnorm(norm),
-                return_sequences=True))
-    if act == 'leakyrelu':
-        nn.add(LeakyReLU(alpha=.1, name='lstm_act'))
-    else:
-        nn.add(Activation(act, name='lstm_act'))
-    print('odim:' + repr(odim))
-    nn.add(TimeDistributed(Dense(odim, kernel_constraint=maxnorm(norm)), name='tddense'))
-#    nn.add(Reshape((input_length * odim,)))
-#    nn.add(Flatten(name='flatten'))
-    
-    nn.compile(optimizer=keras.optimizers.Adam(lr=lr, clipnorm=clipnorm),
-               loss='mse') 
-
-    # network training settings
-    regr_func = G.make_io_func(io_form='stateful_lstm_regression', cols=target_cols)
-    train_gen = G.gen('train', func=regr_func, shuffle=False)
-    valid_gen = G.gen('valid', func=regr_func, shuffle=False)
-    reducer = keras_utils.LrReducer(patience=patience, reduce_rate=.1, 
-                                    reduce_nb=reduce_nb, verbose=verbose, 
-                                    monitor='val_loss', restore_best=True, 
-                                    reset_states=True)
-    
-    print('Total model parameters: %d' % utils.get_param_no(nn))
-    
-    hist = nn.fit_generator(
-        train_gen,
-        steps_per_epoch = (G.n_train - G.l) / batch_size,
-        epochs=1000,
-        callbacks=[reducer],
-        validation_data=valid_gen,
-        validation_steps=(G.n_all - G.n_train - G.l) / batch_size,
-        verbose=verbose
-    )    
-    return hist, nn, reducer
+        # network training settings
+        regr_func = self.G.make_io_func(io_form='stateful_lstm_regression', 
+                                        cols=self.target_cols)
+        train_gen = self.G.gen('train', func=regr_func, shuffle=False)
+        valid_gen = self.G.gen('valid', func=regr_func, shuffle=False)
+        
+        callbacks = [keras_utils.LrReducer(patience=self.patience, reduce_rate=.1, 
+                                          reduce_nb=self.reduce_nb, 
+                                          verbose=self.verbose, 
+                                          monitor='val_loss', restore_best=True, 
+                                          reset_states=True)]
+        return nn, train_gen, valid_gen, callbacks
+        
 
 # Runs a grid search for the above model   
 if __name__ == '__main__':
     dataset, save_file = utils.parse(sys.argv)
-    runner = utils.ModelRunner(param_dict, dataset, LSTMmodel, save_file)
-    runner.run(log=log, limit=1)
+    runner = utils.ModelRunner(param_dict, dataset, save_file)
+    runner.run(LSTMmodel, log=log, limit=1)

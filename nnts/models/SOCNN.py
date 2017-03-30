@@ -42,131 +42,114 @@ if __name__ == '__main__':
 #else:
 #    from ._imports_ import *
 
-def SOCNNmodel(datasource, params):
+class SOCNNmodel(utils.Model):
     """
-    Function defines the SOCNN network structure to be passed to utils.ModelRunner
-    Aruments:
-        datasource  - correct argument to the generator object construtor
-        params      - the dictionary with all of the model hyperparameters
-    Returns:
-        keras History object, keras Model object, keras_utils.LrReducer object
-    """    
-    globals().update(params)
-    generator = utils.get_generator(datasource)
-    G = generator(filename=datasource, train_share=train_share, 
-            input_length=input_length, 
-            output_length=output_length, verbose=verbose,
-            batch_size=batch_size, diffs=diffs)
-    
-    idim, odim = G.get_dims(cols=target_cols)
-    
-    # network structure definition
-    inp = Input(shape=(input_length, idim), dtype='float32', name='inp')
-    value_input = Input(shape=(input_length, odim), dtype='float32', name='value_input')
-    
-    offsets, sigs, loop_layers = [inp], [inp], {}
-    
-    for j in range(layers_no['sigs']):
-        # significance sub-network
-        name = 'significance' + str(j+1)
-        ks = kernelsize[j % len(kernelsize)] if (type(kernelsize) == list) else kernelsize
-        loop_layers[name] = Convolution1D(filters if (j < layers_no['sigs'] - 1) else odim, 
-                                          kernel_size=ks, padding='same', 
-                                          activation='linear', name=name,
-                                          kernel_constraint=maxnorm(norm))
-        sigs.append(loop_layers[name](sigs[-1]))
+    Class defines the SOCNN network structure to be passed to utils.ModelRunner
+    """
+    def build(self):
+        """
+        Function has to return:
+            nn                 - keras.models.Model object
+            train_gen, val_gen - results from a nnts.utils.Generator.gen method
+            callbacks          - list of keras.callbacks.Callback objects
+        """  
+        self.name = 'SOCNN'
+        # network structure definition
+        inp = Input(shape=(self.input_length, self.idim), dtype='float32', name='inp')
+        value_input = Input(shape=(self.input_length, self.odim), dtype='float32', name='value_input')
         
-        loop_layers[name + 'BN'] = BatchNormalization(name=name + 'BN')
-        sigs.append(loop_layers[name + 'BN'](sigs[-1]))
+        offsets, sigs, loop_layers = [inp], [inp], {}
         
-        # residual connections for ResNet
-        if resnet and (connection_freq > 0) and (j > 0) and ((j+1) % connection_freq == 0):
-            sigs.append(keras.layers.add([sigs[-1], sigs[-3 * connection_freq + (j==1)]], 
-                                                name='significance_residual' + str(j+1)))
-                       
-        loop_layers[name + 'act'] = LeakyReLU(alpha=.1, name=name + 'act') if (act == 'leakyrelu') else Activation(act, name=name + 'act')
-        sigs.append(loop_layers[name + 'act'](sigs[-1]))
-    
-    for j in range(layers_no['offs']):
-        # offset sub-network
-        name = 'offset' + str(j+1)
-        loop_layers[name] = Convolution1D(filters if (j < layers_no['offs'] - 1) else odim,
-                                          kernel_size=1, padding='same', 
-                                          activation='linear', name=name,
-                                          kernel_constraint=maxnorm(norm))
-        offsets.append(loop_layers[name](offsets[-1]))
-        
-        loop_layers[name + 'BN'] = BatchNormalization(name=name + 'BN')
-        offsets.append(loop_layers[name + 'BN'](offsets[-1]))
-        
-        # residual connections for ResNet
-        if resnet and (connection_freq > 0) and (j > 0) and ((j+1) % connection_freq == 0):
-            offsets.append(keras.layers.add([offsets[-1], offsets[-3 * connection_freq + (j==1)]], 
-                                                   name='offset_residual' + str(j+1)))
-                        
-        loop_layers[name + 'act'] = LeakyReLU(alpha=.1, name=name + 'act') if (act == 'leakyrelu') else Activation(act, name=name + 'act')
-        offsets.append(loop_layers[name + 'act'](offsets[-1]))
-        
-        # offset -> significance connection
-#        if connection_freq > 0:
-#            if ((j+1) % connection_freq == 0) and (j+1 < layers_no):    
-#                sigs.append(merge([offsets[-1], sigs[-1]], mode='concat', concat_axis=-1, name='concat' + str(j+1)))
+        for j in range(self.layers_no['sigs']):
+            # significance sub-network
+            name = 'significance' + str(j+1)
+            ks = self.kernelsize[j % len(self.kernelsize)] if (type(self.kernelsize) == list) else self.kernelsize
+            loop_layers[name] = Convolution1D(self.filters if (j < self.layers_no['sigs'] - 1) else self.odim, 
+                                              kernel_size=ks, padding='same', 
+                                              activation='linear', name=name,
+                                              kernel_constraint=maxnorm(self.norm))
+            sigs.append(loop_layers[name](sigs[-1]))
             
-    # merging offset with appropriate dimensions of the input
-    value_output = keras.layers.add([offsets[-1], value_input], name='value_output')
-
-    value = Permute((2,1))(value_output)
-
-    # copmuting weights from significance net
-    sig = Permute((2,1))(sigs[-1])
-    if architecture['softmax']:    
-        sig = TimeDistributed(Activation('softmax'), name='softmax')(sig)
-    elif architecture['lambda']:    
-        sig = TimeDistributed(Activation('softplus'), name='relulambda')(sig)
-        sig = TimeDistributed(Lambda(lambda x: x/K.sum(x, axis=-1, keepdims=True)), name='lambda')(sig)
+            loop_layers[name + 'BN'] = BatchNormalization(name=name + 'BN')
+            sigs.append(loop_layers[name + 'BN'](sigs[-1]))
+            
+            # residual connections for ResNet
+            if self.resnet and (self.connection_freq > 0) and (j > 0) and ((j+1) % self.connection_freq == 0):
+                sigs.append(keras.layers.add([sigs[-1], sigs[-3 * self.connection_freq + (j==1)]], 
+                                                    name='significance_residual' + str(j+1)))
+                           
+            loop_layers[name + 'act'] = LeakyReLU(alpha=.1, name=name + 'act') if (self.act == 'leakyrelu') else Activation(self.act, name=name + 'act')
+            sigs.append(loop_layers[name + 'act'](sigs[-1]))
         
-    main = keras.layers.multiply(inputs=[sig, value], name='significancemerge')
-    if shared_final_weights:
-        out = TimeDistributed(Dense(output_length, activation='linear', use_bias=False,
-                                    kernel_constraint=nonneg() if nonnegative else None),
-                              name= 'out')(main)
-    else: 
-        outL = LocallyConnected1D(filters=1, kernel_size=1,   # dimensions permuted. time dimension treated as separate channels, no connections between different features
-                                  padding='valid')
-        out = outL(main)
+        for j in range(self.layers_no['offs']):
+            # offset sub-network
+            name = 'offset' + str(j+1)
+            loop_layers[name] = Convolution1D(self.filters if (j < self.layers_no['offs'] - 1) else self.odim,
+                                              kernel_size=1, padding='same', 
+                                              activation='linear', name=name,
+                                              kernel_constraint=maxnorm(self.norm))
+            offsets.append(loop_layers[name](offsets[-1]))
+            
+            loop_layers[name + 'BN'] = BatchNormalization(name=name + 'BN')
+            offsets.append(loop_layers[name + 'BN'](offsets[-1]))
+            
+            # residual connections for ResNet
+            if self.resnet and (self.connection_freq > 0) and (j > 0) and ((j+1) % self.connection_freq == 0):
+                offsets.append(keras.layers.add([offsets[-1], offsets[-3 * self.connection_freq + (j==1)]], 
+                                                       name='offset_residual' + str(j+1)))
+                            
+            loop_layers[name + 'act'] = LeakyReLU(alpha=.1, name=name + 'act') if (self.act == 'leakyrelu') else Activation(self.act, name=name + 'act')
+            offsets.append(loop_layers[name + 'act'](offsets[-1]))
+            
+            # offset -> significance connection
+    #        if connection_freq > 0:
+    #            if ((j+1) % connection_freq == 0) and (j+1 < layers_no):    
+    #                sigs.append(merge([offsets[-1], sigs[-1]], mode='concat', concat_axis=-1, name='concat' + str(j+1)))
+                
+        # merging offset with appropriate dimensions of the input
+        value_output = keras.layers.add([offsets[-1], value_input], name='value_output')
+    
+        value = Permute((2,1))(value_output)
+    
+        # copmuting weights from significance net
+        sig = Permute((2,1))(sigs[-1])
+        if self.architecture['softmax']:    
+            sig = TimeDistributed(Activation('softmax'), name='softmax')(sig)
+        elif self.architecture['lambda']:    
+            sig = TimeDistributed(Activation('softplus'), name='relulambda')(sig)
+            sig = TimeDistributed(Lambda(lambda x: x/K.sum(x, axis=-1, keepdims=True)), name='lambda')(sig)
+            
+        main = keras.layers.multiply(inputs=[sig, value], name='significancemerge')
+        if self.shared_final_weights:
+            out = TimeDistributed(Dense(output_length, activation='linear', use_bias=False,
+                                        kernel_constraint=nonneg() if self.nonnegative else None),
+                                  name= 'out')(main)
+        else: 
+            outL = LocallyConnected1D(filters=1, kernel_size=1,   # dimensions permuted. time dimension treated as separate channels, no connections between different features
+                                      padding='valid')
+            out = outL(main)
+            
+        main_output = Permute((2,1), name='main_output')(out)
         
-    main_output = Permute((2,1), name='main_output')(out)
+        nn = Model(inputs=[inp, value_input], outputs=[main_output, value_output])
+        
+        # network training settings
+        nn.compile(optimizer=keras.optimizers.Adam(lr=self.lr, clipnorm=self.clipnorm),
+                   loss={'main_output': 'mse', 'value_output' : 'mse'},
+                   loss_weights={'main_output': 1., 'value_output': self.aux_weight}) 
     
-    nn = Model(inputs=[inp, value_input], outputs=[main_output, value_output])
+        regr_func = self.G.make_io_func(io_form='cvi_regression', cols=self.target_cols)    
+        train_gen = self.G.gen('train', func=regr_func)
+        valid_gen = self.G.gen('valid', func=regr_func)
+        callbacks = [keras_utils.LrReducer(patience=self.patience, reduce_rate=.1, 
+                                        reduce_nb=self.reduce_nb, verbose=self.verbose, 
+                                        monitor='val_main_output_loss', 
+                                        restore_best=True)]
     
-    # network training settings
-    nn.compile(optimizer=keras.optimizers.Adam(lr=lr, clipnorm=clipnorm),
-               loss={'main_output': 'mse', 'value_output' : 'mse'},
-               loss_weights={'main_output': 1., 'value_output': aux_weight}) 
-
-    regr_func = G.make_io_func(io_form='cvi_regression', cols=target_cols)    
-    train_gen = G.gen('train', func=regr_func)
-    valid_gen = G.gen('valid', func=regr_func)
-    reducer = keras_utils.LrReducer(patience=patience, reduce_rate=.1, 
-                                    reduce_nb=reduce_nb, verbose=verbose, 
-                                    monitor='val_main_output_loss', 
-                                    restore_best=True)
-    
-    print('Total model parameters: %d' % utils.get_param_no(nn))
-    
-    hist = nn.fit_generator(
-        train_gen,
-        steps_per_epoch = (G.n_train - G.l) / batch_size,
-        epochs=1000,
-        callbacks=[reducer],
-        validation_data=valid_gen,
-        validation_steps=(G.n_all - G.n_train - G.l) / batch_size,
-        verbose=verbose
-    )    
-    return hist, nn, reducer
+        return nn, train_gen, valid_gen, callbacks
     
 # Runs a grid search for the above model    
 if __name__ == '__main__':
     dataset, save_file = utils.parse(sys.argv)
-    runner = utils.ModelRunner(param_dict, dataset, SOCNNmodel, save_file)
-    runner.run(log=log, limit=1)
+    runner = utils.ModelRunner(param_dict, dataset, save_file)
+    runner.run(SOCNNmodel, log=log, limit=1)

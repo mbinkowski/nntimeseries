@@ -10,6 +10,7 @@ The file contains i.a. the ModelRunner and Generator classes.
 """
 from ._imports_ import *
 from .config import WDIR
+from . import keras_utils
 
 def list_of_param_dicts(param_dict):
     """
@@ -44,17 +45,16 @@ class ModelRunner(object):
         hdf5_dir    - directory to save trained models using keras Model.save()
                       method
     """    
-    def __init__(self, param_dict, data_list, model, save_file, 
+    def __init__(self, param_dict, data_list, save_file, 
                  hdf5_dir='hdf5_keras_model_files'):
         self.param_list = list_of_param_dicts(param_dict)
         self.data_list = data_list
-        self.model = model
-        self.save_file = WDIR + '\\' + save_file
+        self.save_file = os.path.join(WDIR, save_file)
         self.cdata = None
         self.cp = None
         self.cresults = None
         self.time0 = time.time()
-        self.hdf5_dir = WDIR + '\\' + hdf5_dir
+        self.hdf5_dir = os.path.join(WDIR, hdf5_dir)
         if hdf5_dir not in os.listdir(WDIR):
             os.mkdir(self.hdf5_dir)
         
@@ -75,7 +75,8 @@ class ModelRunner(object):
         code = ''.join(np.random.choice([l for l in string.ascii_uppercase], 5))
         return '%s/%06d_%s_%s_RunMod.h5' % (self.hdf5_dir, n, t, code)
     
-    def run(self, trials=3, log=False, read_file=None, limit=1, irrelevant=[]):
+    def run(self, model_class, trials=3, log=False, read_file=None, limit=1, 
+            irrelevant=[]):
         """
         Function that launches grid search, saves and returns results.
         Arguments:
@@ -130,7 +131,9 @@ class ModelRunner(object):
                         print(str(k).rjust(15) + ': ' +  str(v))
                     self.cdata = data
                     self.cp = params
-                    history, nn, reducer = self.model(data, params)
+                    print("using " + repr(model_class) + " to build the model")
+                    model = model_class(data, params, os.path.join(WDIR, 'tensorboard'))
+                    history, nn, reducer = model.run()
                     self.nn = nn
                     self.reducer = reducer
                     self.history = history
@@ -184,7 +187,7 @@ class ModelRunner(object):
         if read_file is None:
             already_computed = self.cresults
         else:
-            already_computed = [v for k, v in pd.read_pickle(WDIR + '\\' + read_file).T.to_dict().items()]
+            already_computed = [v for k, v in pd.read_pickle(os.path.join(WDIR, read_file)).T.to_dict().items()]
         count = 0
         for res in already_computed:
             if res['data'] != data:
@@ -202,6 +205,82 @@ class ModelRunner(object):
             count += par_ok
         return count
 
+
+class Model(object):
+    """
+    Abstract class defines the general model structure to be passed to 
+    <utils.ModelRunner>.
+    Classes that inherit from <nnts.utils.Model class> should implement 
+    <build> method. 
+    """
+    def __init__(self, datasource, params, tensorboard_dir="./"):
+        """
+        Aruments:
+            datasource  - correct argument to the generator object construtor
+            params      - the dictionary with all of the model hyperparameters
+        """
+        self.name = "Model"
+        self.train_share = (.8, 1)      # default delimeters of the training and validation shares
+        self.input_length = 60          # default input length 
+        self.output_length = 1          # default no. of timesteps to predict (only 1 impelemented)
+        self.verbose = 1                # default verbosity
+        self.batch_size = 128           # default batch size
+        self.diffs = False              # if yes, work on 1st difference of series instead of original
+        self.target_cols = 'default'    # 'default' or list of names of columns to predict
+        self.patience = 5               # default no. of epoch after which learning rate will decrease if no improvement
+        self.reduce_nb = 2              # defualt no. of learning rate reductions
+        self.__dict__.update(params)
+        self.datasource = datasource
+        generator = get_generator(datasource)
+        self.G = generator(filename=datasource, train_share=self.train_share,
+                           input_length=self.input_length, 
+                           output_length=self.output_length, 
+                           verbose=self.verbose,
+                           batch_size=self.batch_size, 
+                           diffs=self.diffs)
+        self.idim, self.odim = self.G.get_dims(cols=self.target_cols)   
+        self.nn, self.train_gen, self.valid_gen, callbacks = self.build()
+        tb_dir = os.path.join(tensorboard_dir, 
+                              datetime.date.today().isoformat(), self.name)
+        if not os.path.exists(tb_dir):
+            os.makedirs(tb_dir)
+        tensorboard = keras.callbacks.TensorBoard(
+            log_dir=tb_dir, histogram_freq=1, write_images=True
+        )
+        self.callbacks = callbacks + [tensorboard]
+        
+
+    def build(self):
+        """
+        Classes that inherit from <nnts.utils.Model class> should implement 
+        <build> method so that it returns:
+            nn                 - keras.models.Model object
+            train_gen, val_gen - results from a nnts.utils.Generator.gen method
+            callbacks          - list of keras.callbacks.Callback objects
+        """   
+        pass
+    
+    def run(self):
+        """
+        Returns:
+            keras.callbacks.History object,
+            kera.models.Model object,
+            nnts.keras_utils.LrReducer object.
+        """
+        print('Total model parameters: %d' % get_param_no(self.nn))
+        
+        hist = self.nn.fit_generator(
+            self.train_gen,
+            steps_per_epoch = (self.G.n_train - self.G.l) / self.batch_size,
+            epochs=1000,
+            callbacks=self.callbacks,
+            validation_data=self.valid_gen,
+            validation_steps=(self.G.n_all - self.G.n_train - self.G.l) / self.batch_size,
+            verbose=self.verbose
+        )    
+        return hist, self.nn, reducer        
+        
+        
 class Generator(object):
     """
     Class that defines a generator that produces samples for fit_generator
@@ -413,11 +492,9 @@ class Generator(object):
             return regr
         else:
             raise Exception('io_form' + repr(io_form) + 'not implemented')
-            
-            
-            
+
+        
 def parse(argv):
-    print('parse: WDIR = ' + repr(WDIR))
     dataset = []
     save_file = ''
     if len(argv) > 1:
