@@ -50,7 +50,9 @@ class SOCNNmodel(utils.Model):
         """
         Function has to return:
             nn                 - keras.models.Model object
-            train_gen, val_gen - results from a nnts.utils.Generator.gen method
+            io_func            - function that converts raw array to the input 
+                                 form that feeds the model. Can be obtained through
+                                 nnts.utils.Generator.make_io_func method
             callbacks          - list of keras.callbacks.Callback objects
         """  
         self.name = 'SOCNN'
@@ -138,15 +140,13 @@ class SOCNNmodel(utils.Model):
                    loss={'main_output': 'mse', 'value_output' : 'mse'},
                    loss_weights={'main_output': 1., 'value_output': self.aux_weight}) 
     
-        regr_func = self.G.make_io_func(io_form='cvi_regression', cols=self.target_cols)    
-        train_gen = self.G.gen('train', func=regr_func)
-        valid_gen = self.G.gen('valid', func=regr_func)
+        io_func = self.G.make_io_func(io_form='cvi_regression', cols=self.target_cols)    
         callbacks = [keras_utils.LrReducer(patience=self.patience, reduce_rate=.1, 
                                         reduce_nb=self.reduce_nb, verbose=self.verbose, 
                                         monitor='val_main_output_loss', 
                                         restore_best=True)]
     
-        return nn, train_gen, valid_gen, callbacks
+        return nn, io_func, callbacks
     
 # Runs a grid search for the above model    
 if __name__ == '__main__':

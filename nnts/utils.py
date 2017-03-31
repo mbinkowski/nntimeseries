@@ -213,11 +213,14 @@ class Model(object):
     Classes that inherit from <nnts.utils.Model class> should implement 
     <build> method. 
     """
-    def __init__(self, datasource, params, tensorboard_dir="./"):
+    def __init__(self, datasource, params, tensorboard_dir="./", 
+                 tb_val_limit=1024):
         """
         Aruments:
-            datasource  - correct argument to the generator object construtor
-            params      - the dictionary with all of the model hyperparameters
+            datasource      - correct argument to the generator object construtor
+            params          - the dictionary with all of the model hyperparameters
+            tensorboard_dir - directory to store TensorBoard logs
+            tb_val_limit    - max number of validation samples to use by TensorBoard
         """
         self.name = "Model"
         self.train_share = (.8, 1)      # default delimeters of the training and validation shares
@@ -231,6 +234,9 @@ class Model(object):
         self.reduce_nb = 2              # defualt no. of learning rate reductions
         self.__dict__.update(params)
         self.datasource = datasource
+        self.tensorboard_dir = tensorboard_dir
+        self.tb_val_limit = tb_val_limit
+        self.shuffle = True
         generator = get_generator(datasource)
         self.G = generator(filename=datasource, train_share=self.train_share,
                            input_length=self.input_length, 
@@ -239,15 +245,7 @@ class Model(object):
                            batch_size=self.batch_size, 
                            diffs=self.diffs)
         self.idim, self.odim = self.G.get_dims(cols=self.target_cols)   
-        self.nn, self.train_gen, self.valid_gen, callbacks = self.build()
-        tb_dir = os.path.join(tensorboard_dir, 
-                              datetime.date.today().isoformat(), self.name)
-        if not os.path.exists(tb_dir):
-            os.makedirs(tb_dir)
-        tensorboard = keras.callbacks.TensorBoard(
-            log_dir=tb_dir, histogram_freq=1, write_images=True
-        )
-        self.callbacks = callbacks + [tensorboard]
+        self.nn, self.io_func, self.callbacks = self.build()
         
 
     def build(self):
@@ -269,13 +267,33 @@ class Model(object):
         """
         print('Total model parameters: %d' % get_param_no(self.nn))
         
+        tb_dir = os.path.join(self.tensorboard_dir, 
+                              datetime.date.today().isoformat(), self.name)
+        if not os.path.exists(tb_dir):
+            os.makedirs(tb_dir)
+        tensorboard = keras_utils.TensorBoard(
+            log_dir=tb_dir, histogram_freq=1, write_images=True
+        )
+        
+        
+        validation_size = self.G.n_all - self.G.n_train - self.G.l
+        tb_gen = self.G.gen('valid', func=self.io_func, shuffle=self.shuffle,
+                            batch_size=min(validation_size, self.tb_val_limit))
+        val_X, val_y = next(tb_gen)
+        val_X, val_y, val_weights = self.nn._standardize_user_data(
+            val_X, val_y,
+            sample_weight=None,
+            check_batch_axis=False,
+            batch_size=self.batch_size#min(validation_size, self.tb_val_limit)
+        )
+
         hist = self.nn.fit_generator(
-            self.train_gen,
-            steps_per_epoch = (self.G.n_train - self.G.l) / self.batch_size,
+            self.G.gen('train', func=self.io_func, shuffle=self.shuffle),
+            steps_per_epoch = (self.G.n_train - self.G.l) // self.batch_size,
             epochs=1000,
-            callbacks=self.callbacks,
-            validation_data=self.valid_gen,
-            validation_steps=(self.G.n_all - self.G.n_train - self.G.l) / self.batch_size,
+            callbacks=self.callbacks + [tensorboard],
+            validation_data=self.G.gen('valid', func=self.io_func, shuffle=self.shuffle),
+            validation_steps=validation_size // self.batch_size,
             verbose=self.verbose
         )    
         return hist, self.nn, reducer        

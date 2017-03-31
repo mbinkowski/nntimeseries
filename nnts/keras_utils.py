@@ -345,3 +345,39 @@ class ThresholdStopper(keras.callbacks.Callback):
                     print("%s: %.5f %s %.5f" % (m, logs.get(m), sign, t))
             self.model.stop_training = True
             
+class TensorBoard(keras.callbacks.TensorBoard):
+    def set_model(self, model):
+        self.model = model
+        self.sess = K.get_session()
+        if self.histogram_freq and self.merged is None:
+            for layer in self.model.layers:
+
+                for weight in layer.weights:
+                    tf.summary.histogram(weight.name, weight)
+                    if self.write_images:
+                        w_img = tf.squeeze(weight)
+                        shape = w_img.get_shape()
+                        if len(shape) > 1 and shape[0] > shape[1]:
+                            w_img = tf.transpose(w_img)
+                        if len(shape) == 1:
+                            w_img = tf.expand_dims(w_img, 0)
+                        ### Here is the difference with the parent keras class
+                        # w_img = tf.expand_dims(tf.expand_dims(w_img, 0), -1)
+                        ###
+                        if len(shape) < 3:
+                            w_img = tf.expand_dims(tf.expand_dims(w_img, 0), -1)
+                        elif len(shape) == 3:
+                            w_img = tf.expand_dims(w_img, -1)          
+                        ###
+                        tf.summary.image(weight.name, w_img)
+
+                if hasattr(layer, 'output'):
+                    tf.summary.histogram('{}_out'.format(layer.name),
+                                         layer.output)
+        self.merged = tf.summary.merge_all()
+
+        if self.write_graph:
+            self.writer = tf.summary.FileWriter(self.log_dir,
+                                                self.sess.graph)
+        else:
+            self.writer = tf.summary.FileWriter(self.log_dir)    
