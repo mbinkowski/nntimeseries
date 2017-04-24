@@ -66,10 +66,12 @@ class SOCNNmodel(utils.Model):
             # significance sub-network
             name = 'significance' + str(j+1)
             ks = self.kernelsize[j % len(self.kernelsize)] if (type(self.kernelsize) == list) else self.kernelsize
-            loop_layers[name] = Convolution1D(self.filters if (j < self.layers_no['sigs'] - 1) else self.odim, 
-                                              kernel_size=ks, padding='same', 
-                                              activation='linear', name=name,
-                                              kernel_constraint=maxnorm(self.norm))
+            loop_layers[name] = Conv1D(
+                self.filters if (j < self.layers_no['sigs'] - 1) else self.odim, 
+                kernel_size=ks, padding='same', 
+                activation='linear', name=name,
+                kernel_constraint=maxnorm(self.norm)
+            )
             sigs.append(loop_layers[name](sigs[-1]))
             
             loop_layers[name + 'BN'] = BatchNormalization(name=name + 'BN')
@@ -86,10 +88,12 @@ class SOCNNmodel(utils.Model):
         for j in range(self.layers_no['offs']):
             # offset sub-network
             name = 'offset' + str(j+1)
-            loop_layers[name] = Convolution1D(self.filters if (j < self.layers_no['offs'] - 1) else self.odim,
-                                              kernel_size=1, padding='same', 
-                                              activation='linear', name=name,
-                                              kernel_constraint=maxnorm(self.norm))
+            loop_layers[name] = Conv1D(
+                self.filters if (j < self.layers_no['offs'] - 1) else self.odim,
+                kernel_size=1, padding='same', 
+                activation='linear', name=name,
+                kernel_constraint=maxnorm(self.norm)
+            )
             offsets.append(loop_layers[name](offsets[-1]))
             
             loop_layers[name + 'BN'] = BatchNormalization(name=name + 'BN')

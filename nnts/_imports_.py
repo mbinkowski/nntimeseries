@@ -35,7 +35,7 @@ from keras.layers.advanced_activations import PReLU, LeakyReLU
 from keras.layers.wrappers import TimeDistributed
 from keras.layers.core import Lambda, RepeatVector, Flatten, Permute
 from keras.layers.pooling import MaxPooling1D
-from keras.layers.convolutional import Convolution1D
+from keras.layers.convolutional import Conv1D
 from keras.optimizers import SGD, RMSprop
 from keras.regularizers import l1, l2, l1_l2
 from keras.constraints import unitnorm, nonneg, maxnorm

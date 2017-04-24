@@ -64,10 +64,12 @@ class CNNmodel(utils.Model):
             else:    
                 name = 'conv' + str(j+1)
                 ks = self.kernelsize[j % len(self.kernelsize)] if (type(self.kernelsize) == list) else self.kernelsize
-                loop_layers[name] = Convolution1D(self.filters if (j < self.layers_no - 1) else self.odim, 
-                                                  kernel_size=ks, padding='same', 
-                                                  activation='linear', name=name,
-                                                  kernel_constraint=maxnorm(self.norm))
+                loop_layers[name] = Conv1D(
+                    self.filters if (j < self.layers_no - 1) else self.odim, 
+                    kernel_size=ks, padding='same', 
+                    activation='linear', name=name,
+                    kernel_constraint=maxnorm(self.norm)
+                )
                 outs.append(loop_layers[name](outs[-1]))
                 
                 loop_layers[name + 'BN'] = BatchNormalization(name=name + 'BN')
@@ -81,8 +83,6 @@ class CNNmodel(utils.Model):
     #                                  concat_axis=-1, name='residual' + str(j+1)))                
                 loop_layers[name + 'act'] = LeakyReLU(alpha=.1, name=name + 'act') if (self.act == 'leakyrelu') else Activation(self.act, name=name + 'act')
                 outs.append(loop_layers[name + 'act'](outs[-1]))
-                
-                
         flat = Flatten()(outs[-1])
         out = Dense(self.odim * self.output_length, activation='linear', 
                     kernel_constraint=maxnorm(self.norm))(flat)  

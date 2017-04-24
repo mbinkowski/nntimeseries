@@ -509,6 +509,20 @@ class Generator(object):
                      'value_output': np.concatenate(il*[x[:, il: il+1, cols]], axis=1)}
                 )           
             return regr
+        elif io_form == 'strategy1':
+            def regr(x):
+                ab = x[:, [il, -1], cols]
+                p = np.array([ab[:, 0, 0] > ab[:, 1, 1], 
+                              (ab[:, 0, 0] <= ab[:, 1, 1]) & (ab[:, 0, 1] >= ab[:, 1, 0]), 
+                              ab[:, 0, 1] < ab[:, 1, 0]]).transpose()
+                return (
+                    {'inp': x[:, :il, :] if (input_cols is None) else x[:, :il, input_cols], 
+                     'value_input': x[:, :il, cols]},
+                    {'value_output': ab,
+                     'prob_output': p,
+                     'full_output': np.concatenate(p, ab.reshape(self.batch_size, 4))}
+                )
+            return regr            
         else:
             raise Exception('io_form' + repr(io_form) + 'not implemented')
 
@@ -553,6 +567,8 @@ def parse(argv):
             save_file = os.path.join('results', 'household_' + argv[0][:-3].split(SEP)[-1] + '.pkl') #'results/cnn2.pkl' #
         elif 'artificial' in dataset[0]:
             save_file = os.path.join('results', 'artificial_' + argv[0][:-3].split(SEP)[-1] + '.pkl')
+        else:
+            raise ValueError("Wrong dataset: " + repr(dataset))
     print("results will be saved in " + repr(save_file))
     return dataset, save_file
     
@@ -561,5 +577,7 @@ def get_generator(dataset):
         from nnts.household import HouseholdGenerator as generator
     elif 'artificial' in dataset:
         from nnts.artificial import ArtificialGenerator as generator  
+    else:
+        raise ValueError("No data sample generator found for '%s' dataset" % dataset)
     print('using ' + repr(generator) + ' to draw samples')
     return generator

@@ -72,7 +72,7 @@ class HouseholdGenerator(utils.Generator):
                                                 diffs=diffs)
 
     def get_target_col_ids(self, ids=True, cols='default'):
-        if cols in ['all', 'defualt']:
+        if cols in ['all', 'default']:
             cols = self.cols 
         assert hasattr(cols, '__iter__')
         return [(i if ids else c) for i, c in enumerate(self.cols) if ('time' not in c) and (c in cols)]
