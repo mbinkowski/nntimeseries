@@ -33,8 +33,8 @@ param_dict = dict(
     nonnegative = [False],          # if True, apply only nonnegative weights at the top layer
     connection_freq = [2],          # vertical connection frequency for ResNet
     aux_weight = [0., .1, 0.01],    # auxilllary loss weight
-    shared_final_weights = [False], # if True, same weights of timesteps for all dimentions are trained
-    resnet = [False],               # if True, adds vertical connections
+    shared_final_weights = [True], # if True, same weights of timesteps for all dimentions are trained
+    resnet = [True],               # if True, adds vertical connections
 )
 
 if __name__ == '__main__':
@@ -78,7 +78,7 @@ class SOCNNmodel(utils.Model):
             sigs.append(loop_layers[name + 'BN'](sigs[-1]))
             
             # residual connections for ResNet
-            if self.resnet and (self.connection_freq > 0) and (j > 0) and ((j+1) % self.connection_freq == 0):
+            if self.resnet and (self.connection_freq > 0) and (j > 0) and ((j+1) % self.connection_freq == 0) and (j < self.layers_no['sigs'] - 1):
                 sigs.append(keras.layers.add([sigs[-1], sigs[-3 * self.connection_freq + (j==1)]], 
                                                     name='significance_residual' + str(j+1)))
                            
@@ -100,7 +100,7 @@ class SOCNNmodel(utils.Model):
             offsets.append(loop_layers[name + 'BN'](offsets[-1]))
             
             # residual connections for ResNet
-            if self.resnet and (self.connection_freq > 0) and (j > 0) and ((j+1) % self.connection_freq == 0):
+            if self.resnet and (self.connection_freq > 0) and (j > 0) and ((j+1) % self.connection_freq == 0) and (j < self.layers_no['offs'] - 1):
                 offsets.append(keras.layers.add([offsets[-1], offsets[-3 * self.connection_freq + (j==1)]], 
                                                        name='offset_residual' + str(j+1)))
                             
