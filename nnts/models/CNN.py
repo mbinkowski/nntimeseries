@@ -12,7 +12,7 @@ param_dict = dict(
     #i/o parameters                  
     verbose = [1 + int(log)],       # verbosity
     train_share = [(.8, 1.)],       # delimeters of the training and validation shares
-    input_length = [60],            # input length (1 - stateful lstm)
+    input_length = [120],            # input length (1 - stateful lstm)
     output_length = [1],            # no. of timesteps to predict (only 1 impelemented)
     batch_size = [128],             # batch size
     objective=['regr'],             # only 'regr' (regression) implemented

@@ -19,7 +19,8 @@ import sys, os
 
 print(__file__)
 print(os.path.abspath(__file__))
-WDIR = '\\'.join(os.path.abspath(__file__).split('\\')[:-2] + [''])
+SEP = os.path.sep
+WDIR = SEP.join(os.path.abspath(__file__).split(SEP)[:-2] + [''])
 print(WDIR)
 #WDIR = os.path.abspath(os.getcwd()) + '\\'
 #WDIR = '\\'.join(path.split('\\')[:-1])

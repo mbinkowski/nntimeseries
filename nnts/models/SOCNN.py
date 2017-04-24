@@ -123,7 +123,7 @@ class SOCNNmodel(utils.Model):
             
         main = keras.layers.multiply(inputs=[sig, value], name='significancemerge')
         if self.shared_final_weights:
-            out = TimeDistributed(Dense(output_length, activation='linear', use_bias=False,
+            out = TimeDistributed(Dense(self.output_length, activation='linear', use_bias=False,
                                         kernel_constraint=nonneg() if self.nonnegative else None),
                                   name= 'out')(main)
         else: 

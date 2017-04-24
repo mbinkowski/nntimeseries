@@ -9,7 +9,7 @@ The utilities file.
 The file contains i.a. the ModelRunner and Generator classes.
 """
 from ._imports_ import *
-from .config import WDIR
+from .config import WDIR, SEP
 from . import keras_utils
 
 def list_of_param_dicts(param_dict):
@@ -49,6 +49,7 @@ class ModelRunner(object):
                  hdf5_dir='hdf5_keras_model_files'):
         self.param_list = list_of_param_dicts(param_dict)
         self.data_list = data_list
+        print('PRINT', [WDIR, save_file])
         self.save_file = os.path.join(WDIR, save_file)
         self.cdata = None
         self.cp = None
@@ -59,7 +60,7 @@ class ModelRunner(object):
             os.mkdir(self.hdf5_dir)
         
     def _read_results(self):
-        if self.save_file.split('\\')[-1] in os.listdir('\\'.join(self.save_file.split('\\')[:-1])):
+        if self.save_file.split(SEP)[-1] in os.listdir(SEP.join(self.save_file.split(SEP)[:-1])):
         #    results = []
             results = [v for k, v in pd.read_pickle(self.save_file).T.to_dict().items()]
         else:
@@ -73,7 +74,7 @@ class ModelRunner(object):
             n = int(np.max([int(f.split('_')[0]) for f in files])) + 1
         t = datetime.datetime.now().isoformat().replace(':', '.')
         code = ''.join(np.random.choice([l for l in string.ascii_uppercase], 5))
-        return '%s/%06d_%s_%s_RunMod.h5' % (self.hdf5_dir, n, t, code)
+        return '%s%s%06d_%s_%s_RunMod.h5' % (self.hdf5_dir, SEP, n, t, code)
     
     def run(self, model_class, trials=3, log=False, read_file=None, limit=1, 
             irrelevant=[]):
@@ -213,7 +214,7 @@ class Model(object):
     Classes that inherit from <nnts.utils.Model class> should implement 
     <build> method. 
     """
-    def __init__(self, datasource, params, tensorboard_dir="./", 
+    def __init__(self, datasource, params, tensorboard_dir="." + SEP, 
                  tb_val_limit=1024):
         """
         Aruments:
@@ -514,6 +515,7 @@ class Generator(object):
         
 def parse(argv):
     dataset = []
+    data_files = os.listdir(os.path.join(WDIR, 'data'))
     save_file = ''
     if len(argv) > 1:
         argvv = [argv[1]]
@@ -529,26 +531,28 @@ def parse(argv):
             assert k in ['--dataset', '--save_file'], "wrong keyword: " + k
             if k == '--dataset':
                 if v == 'artificial':
-                    dataset = ['data//' + file for file in os.listdir(WDIR + 'data') if (v in file)]
+                    dataset = [os.path.join('data', file) for file in data_files if (v in file)]
                 elif v == 'household':
-                    dataset = [file for file in os.listdir(WDIR + 'data') if (v in file) and ('.pkl' in file)]
+                    dataset = [file for file in data_files if (v in file) and ('.pkl' in file)]
+                    if len(dataset) == 0:
+                        dataset = ['household']
                 else:
                     for file in v.split(','):
-                        assert file in os.listdir(WDIR + 'data'), repr(file) + ": no such file in data directory"
+                        assert file in data_files, repr(file) + ": no such file in data directory"
                         dataset.append(file)
             else:
                 assert ',' not in v, "arguments not understood: " + k + '=' + v.replace(',', ' ')
                 save_file = v
     if len(dataset) == 0:
         print("no dataset specified, trying default: artificial")
-        dataset = ['data//' + f for f in os.listdir(WDIR + 'data') if ('artificial' in f)]    
+        dataset = [os.path.join('data', f) for f in data_files if ('artificial' in f)]    
         assert len(dataset) > 0, 'no files for aritificial dataset available in the data directory' 
     if len(save_file) == 0:
         print("no save_file specified")
         if 'household' in dataset[0]:
-            save_file = 'results/household_' + argv[0][:-3] + '.pkl' #'results/cnn2.pkl' #
+            save_file = os.path.join('results', 'household_' + argv[0][:-3].split(SEP)[-1] + '.pkl') #'results/cnn2.pkl' #
         elif 'artificial' in dataset[0]:
-            save_file = 'results/artificial_' + argv[0][:-3] + '.pkl'
+            save_file = os.path.join('results', 'artificial_' + argv[0][:-3].split(SEP)[-1] + '.pkl')
     print("results will be saved in " + repr(save_file))
     return dataset, save_file
     
