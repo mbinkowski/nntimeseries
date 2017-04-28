@@ -13,7 +13,7 @@ from ._imports_ import *
 from .config import WDIR
 
 def download_and_unzip(url='https://archive.ics.uci.edu/ml/machine-learning-databases/00235/household_power_consumption.zip',
-                       verbose=1, filename='household.pkl', limit=np.inf):
+                       verbose=1, filename='household', limit=np.inf):
     import urllib, zipfile
     if 'data' not in os.listdir(WDIR):
         os.mkdir('data')
@@ -35,7 +35,7 @@ def download_and_unzip(url='https://archive.ics.uci.edu/ml/machine-learning-data
                     na_values=['?'], nrows=limit if (limit < np.inf) else None)
     X['time'] = X['datetime'].apply(lambda x: x.hour*60 + x.minute)
 #    X['time'] = X['datetime'].apply(lambda x: (x - pd.Timestamp(x.date())))/np.timedelta64(1, 's')
-    filepath = os.path.join('data', filename)
+    filepath = os.path.join(WDIR, 'data', filename + '.pkl')
     X.to_pickle(filepath)
     if verbose > 0:
         print("time = %.2fs, data converted and saved as '%s'" % (time.time() - t0, filepath))
@@ -48,7 +48,7 @@ class HouseholdGenerator(utils.Generator):
     Class that provides sample generator for Household Electricity Dataset. 
     
     """
-    def __init__(self, filename='household.pkl', 
+    def __init__(self, filename='household', 
                  url='https://archive.ics.uci.edu/ml/machine-learning-databases/00235/household_power_consumption.zip',
                  train_share=(.8, 1.), input_length=1, output_length=1, verbose=1, 
                  limit=np.inf, batch_size=16, diffs=False):
@@ -76,3 +76,22 @@ class HouseholdGenerator(utils.Generator):
             cols = self.cols 
         assert hasattr(cols, '__iter__')
         return [(i if ids else c) for i, c in enumerate(self.cols) if ('time' not in c) and (c in cols)]
+    
+
+class HouseholdAsynchronousGenerator(HouseholdGenerator):
+    def __init__(self, filename='household.pkl', 
+                 url='https://archive.ics.uci.edu/ml/machine-learning-databases/00235/household_power_consumption.zip',
+                 train_share=(.8, 1.), input_length=1, output_length=1, verbose=1, 
+                 limit=np.inf, batch_size=16, diffs=False):
+        super(HouseholdAynchronousGenerator, self).__init__(
+            filename=filename, url=url, train_share=train_share,
+            input_length=input_length, output_length=output_length,
+            verbose=verbose, limit=limit, batch_size=batch_size, diffs=diffs
+        )
+        self.schedule = self.filename + '_schedule.pkl'
+        if 
+    def generate_schedule(self):
+        N, d = self.X.shape
+        
+        
+        
