@@ -380,4 +380,4 @@ class TensorBoard(keras.callbacks.TensorBoard):
             self.writer = tf.summary.FileWriter(self.log_dir,
                                                 self.sess.graph)
         else:
-            self.writer = tf.summary.FileWriter(self.log_dir)    
+            self.writer = tf.summary.FileWriter(self.log_dir)
