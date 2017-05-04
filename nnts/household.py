@@ -13,7 +13,7 @@ from ._imports_ import *
 from .config import WDIR
 
 def download_and_unzip(url='https://archive.ics.uci.edu/ml/machine-learning-databases/00235/household_power_consumption.zip',
-                       verbose=1, filename='household', limit=np.inf):
+                       verbose=1, filename='household.pkl', limit=np.inf):
     import urllib, zipfile
     if 'data' not in os.listdir(WDIR):
         os.mkdir('data')
@@ -35,7 +35,7 @@ def download_and_unzip(url='https://archive.ics.uci.edu/ml/machine-learning-data
                     na_values=['?'], nrows=limit if (limit < np.inf) else None)
     X['time'] = X['datetime'].apply(lambda x: x.hour*60 + x.minute)
 #    X['time'] = X['datetime'].apply(lambda x: (x - pd.Timestamp(x.date())))/np.timedelta64(1, 's')
-    filepath = os.path.join(WDIR, 'data', filename + '.pkl')
+    filepath = os.path.join(WDIR, 'data', filename)
     X.to_pickle(filepath)
     if verbose > 0:
         print("time = %.2fs, data converted and saved as '%s'" % (time.time() - t0, filepath))
@@ -48,7 +48,7 @@ class HouseholdGenerator(utils.Generator):
     Class that provides sample generator for Household Electricity Dataset. 
     
     """
-    def __init__(self, filename='household', 
+    def __init__(self, filename='household.pkl', 
                  url='https://archive.ics.uci.edu/ml/machine-learning-databases/00235/household_power_consumption.zip',
                  train_share=(.8, 1.), input_length=1, output_length=1, verbose=1, 
                  limit=np.inf, batch_size=16, diffs=False):
@@ -98,13 +98,17 @@ class HouseholdAsynchronousGenerator(HouseholdGenerator):
         
         self.value_cols = [c for c in X.columns if 'time' not in c]
         self.ind_cols = [c +'_ind' for c in self.value_cols]
-        self.schedule_file = self.filename + '_schedule.pkl'
+        self.schedule_file = self.filename[:-4] + '_schedule.pkl'
         if (self.schedule_file in os.listdir(os.path.join(WDIR, 'data'))) and (not new_schedule):
+            print('Reading sampling schedule from the precomputed file %s' % \
+                  os.path.join(WDIR, 'data', self.schedule_file))
             schedule = pd.read_pickle(os.path.join(WDIR, 'data', self.schedule_file))
         else:
-            schedule = self.generate_schedule(duration_type=duration_type)
+            print('Generating new asynchronous sampling schedue')
+            schedule = self.generate_schedule(X.shape, duration_type=duration_type)
             schedule.to_pickle(os.path.join(WDIR, 'data', self.schedule_file))
-        X['value'] = 0
+        X.index = np.arange(X.shape[0])
+        X['value'] = 0.
         for c in self.value_cols:
             X['value'] += X[c] * schedule[c + '_ind']
         X = pd.concat([X, schedule], axis=1)
@@ -121,19 +125,19 @@ class HouseholdAsynchronousGenerator(HouseholdGenerator):
         self.cols = self.value_cols + self.ind_cols + ['time', 'value']
 
            
-    def generate_schedule(self, duration_type='deterministic'):
-        N, d = self.X.shape
+    def generate_schedule(self, shape, duration_type='deterministic'):
+        N, d = shape
         frequencies = np.random.permutation(1.5**np.arange(d - 2))
         frequencies /= frequencies.sum()
-        schedule = np.random.multinomial(1, pvals=frequencies, size=(N,))
+        schedule = np.asarray(np.random.multinomial(1, pvals=frequencies, size=(N,)), dtype=np.float32)
         if duration_type == 'deterministic':
-            v = [1, 1, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 1, 0, 0, 0, 1, 1, 0, 1]
+            v = [1., 1., 0., 1., 0., 0., 1., 0., 0., 0., 0., 0., 0., 1., 0., 1., 0., 1., 0., 0., 0., 1., 1., 0., 1.]
             valid = np.array((v * (N // len(v) + 1))[:N])
         elif duration_type == 'random':
-            valid = [1]
+            valid = [1.]
             while len(valid) < N:
                 duration = int(np.random.exponential(2.))
-                valid += [0] * duration + [1]
+                valid += [0.] * duration + [1.]
             valid = np.array(valid[:N])
         schedule *= valid.reshape(N, 1)
         return pd.DataFrame(schedule, columns=[c +'_ind' for c in self.value_cols])
@@ -151,3 +155,5 @@ class HouseholdAsynchronousGenerator(HouseholdGenerator):
             ids=ids, cols=self.value_cols if (cols in ['all', 'default']) else cols
         )
         
+    def get_dim(self):
+        return 9

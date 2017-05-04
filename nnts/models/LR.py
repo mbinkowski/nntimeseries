@@ -12,7 +12,7 @@ log=False                       # if True, all the verbose output is saved in lo
 param_dict = dict(
     #input parameters                  
     verbose = [1 + int(log)],   # verbosity
-    train_share = [(.8, 1.)],   # delimeters of the training and validation shares
+    train_share = [(.7, .8, 1.)],   # delimeters of the training and validation shares
     input_length = [60],        # input length 
     output_length = [1],        # no. of timesteps to predict (only 1 impelemented)
     batch_size = [128],         # batch size

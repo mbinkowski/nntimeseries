@@ -381,3 +381,36 @@ class TensorBoard(keras.callbacks.TensorBoard):
                                                 self.sess.graph)
         else:
             self.writer = tf.summary.FileWriter(self.log_dir)
+            
+class Test(keras.callbacks.Callback):
+    def __init__(self, G, io_func, verbose):
+        super(keras.callbacks.Callback, self).__init__()
+        self.verbose = verbose
+        self.batch_size = G.batch_size
+        test_gen = G.gen(mode='test',
+                         batch_size=G.n_test - G.n_valid - G.l,
+                         func=io_func)
+        self.X, self.y = next(test_gen)
+        self.test_hist = {}
+        self.time0 = time.time()
+        
+        
+    def on_epoch_end(self, epoch, logs={}):
+        if epoch == 0:
+            self.test_hist = dict([('test_' + loss, []) for loss in \
+                                    self.model.metrics_names] \
+                                    + [('epoch_time', [])])
+        ev = self.model.evaluate(self.X, self.y, batch_size=self.batch_size, 
+                                 verbose=self.verbose)
+        if hasattr(ev, '__iter__'):
+            test_loss = '\n--'
+            for loss, value in zip(self.model.metrics_names, ev):
+                self.test_hist['test_' + loss].append(value)
+                test_loss += '- test_%s: %f ' % (loss, value)
+            if self.verbose > 0:
+                print(test_loss)
+        else:
+            self.test_hist['test_loss'].append(ev)
+            if self.verbose > 0:
+                print('\n--- test_loss: %f ' % ev)
+        self.test_hist['epoch_time'].append(time.time() - self.time0)

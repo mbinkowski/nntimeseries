@@ -13,7 +13,7 @@ param_dict = dict(
     #input parameters
     verbose = [1 + int(log)],   # verbosity
     train_share = [(.7, .8, 1.)],   # delimeters of the training and validation shares
-    input_length = [1],         # input length (1 - stateful lstm)
+    input_length = [60],         # input length (1 - stateful lstm)
     output_length = [1],        # no. of timesteps to predict (only 1 impelemented)
     batch_size = [128],         # batch size
     objective=['regr'],         # only 'regr' (regression) implemented
@@ -22,14 +22,14 @@ param_dict = dict(
     #training_parameters
     patience = [20],             # no. of epoch after which learning rate will decrease if no improvement
     reduce_nb = [3],            # no. of learning rate reductions
-    lr = [.00001],                # initial learning rate
+    lr = [.001],                # initial learning rate
     clipnorm = [0.001],           # max gradient norm
     #model parameters
     norm = [1],                 # max norm for fully connected top layer's weights    
-    layer_size = [64],  # size of lstm layer
+    layer_size = [32],  # size of lstm layer
     act = ['leakyrelu'],        # activation ('linear', 'relu', 'sigmoid', 'tanh', 'leakyrelu') 
-    dropout = [0],              # dropout rate
-    layers_no = [1],            # no. of LSTM layers
+    dropout = [0.2],              # dropout rate
+    layers_no = [3],            # no. of LSTM layers
 )
 
 if __name__ == '__main__':
@@ -48,40 +48,43 @@ class LSTMmodel(utils.Model):
                                  nnts.utils.Generator.make_io_func method
             callbacks          - list of keras.callbacks.Callback objects
         """
-        self.name = 'LSTM'
-        self.shuffle = False
+        self.name = 'LSTM2'
+        self.shuffle = True
         # network structure definition
         nn = Sequential()   
-        batch_input_shape = (self.batch_size, int(self.input_length), self.idim)
+#        batch_input_shape = (self.batch_size, int(self.input_length), self.idim)
+        input_shape = (int(self.input_length), self.idim)
         if self.dropout > 0:
             nn.add(Dropout(self.dropout, 
-                           batch_input_shape=batch_input_shape,
-                           name='dropout'))
-        nn.add(LSTM(self.layer_size,
-                    batch_input_shape=batch_input_shape,
-                    stateful=True, activation=None,
-                    recurrent_activation='sigmoid', name='lstm',
+                           input_shape=input_shape,
+                           name='dropout0'))
+        for n in np.arange(self.layers_no - 1):
+            nn.add(LSTM(self.layer_size,
+                        input_shape=input_shape,
+                        stateful=False, activation=None,
+                        recurrent_activation='sigmoid', name='lstm%d' % (n + 1),
+                        recurrent_constraint=maxnorm(self.norm),
+                        kernel_constraint=maxnorm(self.norm),
+                        return_sequences=True))
+            if self.act == 'leakyrelu':
+                nn.add(LeakyReLU(alpha=.1, name='lstm_act%d' % (n + 1)))
+            else:
+                nn.add(Activation(self.act, name='lstm_act%d' % (n + 1)))
+            if self.dropout > 0:
+                nn.add(Dropout(self.dropout, 
+                               input_shape=input_shape,
+                               name='dropout%d' % (n + 1)))
+        nn.add(LSTM(self.odim, activation=None,
+                    recurrent_activation='sigmoid', name='lstm%d' % self.layers_no,
                     recurrent_constraint=maxnorm(self.norm),
-                    kernel_constraint=maxnorm(self.norm),
-                    return_sequences=True))
-        if self.act == 'leakyrelu':
-            nn.add(LeakyReLU(alpha=.1, name='lstm_act'))
-        else:
-            nn.add(Activation(self.act, name='lstm_act'))
-        print('odim:' + repr(self.odim))
-        nn.add(TimeDistributed(
-            Dense(self.odim, kernel_constraint=maxnorm(self.norm)), 
-            name='tddense'
-        ))
-    #    nn.add(Reshape((input_length * odim,)))
-    #    nn.add(Flatten(name='flatten'))
+                    kernel_constraint=maxnorm(self.norm)))
         
         nn.compile(optimizer=keras.optimizers.Adam(lr=self.lr, 
                                                    clipnorm=self.clipnorm),
                    loss='mse') 
     
         # network training settings
-        io_func = self.G.make_io_func(io_form='stateful_lstm_regression', 
+        io_func = self.G.make_io_func(io_form='regression', 
                                       cols=self.target_cols)
         
         callbacks = [keras_utils.LrReducer(patience=self.patience, reduce_rate=.1, 
@@ -94,6 +97,6 @@ class LSTMmodel(utils.Model):
 
 # Runs a grid search for the above model   
 if __name__ == '__main__':
-    dataset, save_file = utils.parse(sys.argv)
+    dataset, save_file = utils.parse(['LSTM2.py', '--dataset=artificialET1SS1n10000S16.csv'])
     runner = utils.ModelRunner(param_dict, dataset, save_file)
     runner.run(LSTMmodel, log=log, limit=1)

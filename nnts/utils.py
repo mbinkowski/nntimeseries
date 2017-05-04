@@ -134,11 +134,10 @@ class ModelRunner(object):
                     self.cp = params
                     print("using " + repr(model_class) + " to build the model")
                     model = model_class(data, params, os.path.join(WDIR, 'tensorboard'))
-                    history, nn, reducer = model.run()
+#                    history, nn, reducer = model.run()
+                    model_results, nn = model.run()
                     self.nn = nn
-                    self.reducer = reducer
-                    self.history = history
-                    model_results = history.history
+#                    self.reducer = reducer
                     model_results.update(params)
                     hdf5_name = self._get_hdf5_name()
                     print('setting time %.2f' % (time.time() - setting_time))
@@ -275,18 +274,20 @@ class Model(object):
         tensorboard = keras_utils.TensorBoard(
             log_dir=tb_dir, histogram_freq=1, write_images=True
         )
+        if self.G.test:
+            test_cb = keras_utils.Test(self.G, self.io_func, self.verbose)
+            self.callbacks.append(test_cb)
         
-        
-        validation_size = self.G.n_all - self.G.n_train - self.G.l
-        tb_gen = self.G.gen('valid', func=self.io_func, shuffle=self.shuffle,
+        validation_size = self.G.n_valid - self.G.n_train - self.G.l
+        self.tb_gen = self.G.gen('valid', func=self.io_func, shuffle=self.shuffle,
                             batch_size=min(validation_size, self.tb_val_limit))
-        val_X, val_y = next(tb_gen)
-        val_X, val_y, val_weights = self.nn._standardize_user_data(
-            val_X, val_y,
-            sample_weight=None,
-            check_batch_axis=False,
-            batch_size=self.batch_size#min(validation_size, self.tb_val_limit)
-        )
+#        val_X, val_y = next(tb_gen)
+#        val_X, val_y, val_weights = self.nn._standardize_user_data(
+#            val_X, val_y,
+#            sample_weight=None,
+##            check_batch_axis=False,
+#            batch_size=self.batch_size#min(validation_size, self.tb_val_limit)
+#        )
 
         hist = self.nn.fit_generator(
             self.G.gen('train', func=self.io_func, shuffle=self.shuffle),
@@ -296,8 +297,11 @@ class Model(object):
             validation_data=self.G.gen('valid', func=self.io_func, shuffle=self.shuffle),
             validation_steps=validation_size // self.batch_size,
             verbose=self.verbose
-        )    
-        return hist, self.nn, reducer        
+        )
+        history = hist.history
+        if self.G.test:
+            history.update(test_cb.test_hist)
+        return history, self.nn#, reducer        
         
         
 class Generator(object):
@@ -332,7 +336,12 @@ class Generator(object):
         self.verbose = verbose
         self.batch_size = batch_size
         self.n_train = int(((self.X.shape[0] - diffs) * train_share[0] - self.l)/batch_size) * batch_size + self.l
-        self.n_all = self.n_train + int(((self.X.shape[0] - diffs) * train_share[1] - self.n_train - self.l)/batch_size) * batch_size + self.l
+        self.n_valid = self.n_train + int(((self.X.shape[0] - diffs) * train_share[1] - self.n_train - self.l)/batch_size) * batch_size + self.l
+        if len(train_share) > 2:
+            self.n_test = self.n_valid + int(((self.X.shape[0] - diffs) * train_share[2] - self.n_valid - self.l)/batch_size) * batch_size + self.l
+            self.test = True
+        else:
+            self.test = False
         self.excluded = excluded
         self.cols = [c for c in self.X.columns if c not in self.excluded]
         self._scale()
@@ -403,19 +412,26 @@ class Generator(object):
             rows of X
                           
         """
+        np.random.seed(123)
         if batch_size is None:
             batch_size = self.batch_size
         if func is None:
             func = lambda x: (x[:, :self.input_length, :], x[:, self.input_length:, :])
-        if mode=='train':
-            n_end = self.n_train
-        elif mode == 'valid':
-            n_start = self.n_train
-            n_end = self.n_all
+        if mode in ['train', 'valid']:
+            order = np.random.permutation(np.arange(
+                self.input_length, self.n_valid - self.output_length
+            ))
+            o_len = int(len(order) * self.train_share[0] / self.train_share[1])
+            order = order[:o_len] if (mode == 'train') else order[o_len:]
+        elif mode == 'test':
+            assert self.test, "Test sample undefinded. To enable 'test' mode define three delimiters for train_share."
+            order = np.arange(self.n_valid + self.input_length, 
+                              self.n_test - self.output_length)
         elif mode == 'manual':
-            assert n_end < self.n_all
+            assert n_end < self.n_valid
             assert n_start >= 0
             assert n_end > n_start
+            order = np.arange(n_start + self.input_length, n_end - self.output_length)
         else:
             raise Exception('invalid mode')
         if not shuffle:
@@ -424,10 +440,10 @@ class Generator(object):
             if mode == 'valid':
                 n_start -= self.l - 1
                 n_end -= self.l - 1
+            order = np.arange(n_start + self.input_length, n_end - self.output_length)
         XX = self.asarray()
         x = []
         while True:
-            order = np.arange(n_start + self.input_length, n_end - self.output_length)
             if shuffle:
                 order = np.random.permutation(order)
             else:
@@ -550,10 +566,14 @@ def parse(argv):
                     dataset = [file for file in data_files if (v in file) and ('.pkl' in file)]
                     if len(dataset) == 0:
                         dataset = ['household']
+                elif v == 'household_async':
+                    dataset = [file for file in data_files if (v in file) and ('.pkl' in file)]
+                    if len(dataset) == 0:
+                        dataset = ['household_async']                
                 else:
                     for file in v.split(','):
                         assert file in data_files, repr(file) + ": no such file in data directory"
-                        dataset.append(file)
+                        dataset.append(os.path.join('data', file))
             else:
                 assert ',' not in v, "arguments not understood: " + k + '=' + v.replace(',', ' ')
                 save_file = v
@@ -563,7 +583,9 @@ def parse(argv):
         assert len(dataset) > 0, 'no files for aritificial dataset available in the data directory' 
     if len(save_file) == 0:
         print("no save_file specified")
-        if 'household' in dataset[0]:
+        if 'async' in dataset[0]:
+            save_file = os.path.join('results', 'household_async_' + argv[0][:-3].split(SEP)[-1] + '.pkl')
+        elif 'household' in dataset[0]:
             save_file = os.path.join('results', 'household_' + argv[0][:-3].split(SEP)[-1] + '.pkl') #'results/cnn2.pkl' #
         elif 'artificial' in dataset[0]:
             save_file = os.path.join('results', 'artificial_' + argv[0][:-3].split(SEP)[-1] + '.pkl')
@@ -573,7 +595,9 @@ def parse(argv):
     return dataset, save_file
     
 def get_generator(dataset):
-    if 'household' in dataset:
+    if 'async' in dataset:
+        from nnts.household import HouseholdAsynchronousGenerator as generator
+    elif 'household' in dataset:
         from nnts.household import HouseholdGenerator as generator
     elif 'artificial' in dataset:
         from nnts.artificial import ArtificialGenerator as generator  

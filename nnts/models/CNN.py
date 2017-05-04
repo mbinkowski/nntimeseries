@@ -11,7 +11,7 @@ log=False
 param_dict = dict(
     #i/o parameters                  
     verbose = [1 + int(log)],       # verbosity
-    train_share = [(.8, 1.)],       # delimeters of the training and validation shares
+    train_share = [(.7, .8, 1.)],       # delimeters of the training and validation shares
     input_length = [120],            # input length (1 - stateful lstm)
     output_length = [1],            # no. of timesteps to predict (only 1 impelemented)
     batch_size = [128],             # batch size
@@ -103,6 +103,6 @@ class CNNmodel(utils.Model):
 
 # Runs a grid search for the above model    
 if __name__ == '__main__':
-    dataset, save_file = utils.parse(sys.argv)
+    dataset, save_file = utils.parse(['CNN.py', '--dataset=artificialET1SS1n10000S16.csv'])#sys.argv)
     runner = utils.ModelRunner(param_dict, dataset, save_file)
     runner.run(CNNmodel, log=log, limit=1)

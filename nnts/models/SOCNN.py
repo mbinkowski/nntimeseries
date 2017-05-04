@@ -10,7 +10,7 @@ log=False
 param_dict = dict(
     # input parameters
     verbose = [1 + int(log)],       # verbosity
-    train_share = [(.8, 1.)],       # delimeters of the training and validation shares
+    train_share = [(.7, .8, 1.)],       # delimeters of the training and validation shares
     input_length = [60],            # input length (1 - stateful lstm)
     output_length = [1],            # no. of timesteps to predict (only 1 impelemented)
     batch_size = [128],             # batch size
@@ -20,19 +20,21 @@ param_dict = dict(
     #training_parameters
     patience = [5],                 # no. of epoch after which learning rate will decrease if no improvement
     reduce_nb = [2],                # no. of learning rate reductions
-    lr = [.001],                    # initial learning rate
+    lr = [.01],                    # initial learning rate
     clipnorm = [1.0],               # max gradient norm
     #model parameters
     norm = [10],                    # max norm for fully connected top layer's weights
     filters = [16],                 # no. of convolutional filters per layer
     act = ['leakyrelu'],            # activation ('linear', 'relu', 'sigmoid', 'tanh', 'leakyrelu')
-    kernelsize = [3, 1, [1, 3]],    # kernel size (if list of ints passed kernel size changes successively in consecutive layers)
-    layers_no = [{'sigs': 10, 'offs': 2}],  # no. of layers for significance and offset sub-networks             
-    architecture = [{'softmax': True, 'lambda': False},
-                    {'softmax': False, 'lambda': True}], # final activation: lambda=True indicates softplus   
+    kernelsize = [[1, 3], 1, 3],    # kernel size (if list of ints passed kernel size changes successively in consecutive layers)
+    layers_no = [{'sigs': 10, 'offs': 1},
+                 {'sigs': 10, 'offs': 2},
+                 {'sigs': 10, 'offs': 5},
+                 {'sigs': 10, 'offs': 10}],  # no. of layers for significance and offset sub-networks             
+    architecture = [{'softmax': True, 'lambda': False}], # final activation: lambda=True indicates softplus   
     nonnegative = [False],          # if True, apply only nonnegative weights at the top layer
     connection_freq = [2],          # vertical connection frequency for ResNet
-    aux_weight = [0., .1, 0.01],    # auxilllary loss weight
+    aux_weight = [0.1, 0., 0.01],    # auxilllary loss weight
     shared_final_weights = [True], # if True, same weights of timesteps for all dimentions are trained
     resnet = [True],               # if True, adds vertical connections
 )
@@ -154,6 +156,6 @@ class SOCNNmodel(utils.Model):
     
 # Runs a grid search for the above model    
 if __name__ == '__main__':
-    dataset, save_file = utils.parse(sys.argv)
+    dataset, save_file = utils.parse(['SOCNN.py', '--dataset=artificialET1SS1n10000S16.csv']) #sys.argv) # ['SOCNN.py', '--dataset=household_async'])
     runner = utils.ModelRunner(param_dict, dataset, save_file)
     runner.run(SOCNNmodel, log=log, limit=1)
