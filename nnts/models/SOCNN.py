@@ -32,11 +32,11 @@ param_dict = dict(
                  {'sigs': 10, 'offs': 5},
                  {'sigs': 10, 'offs': 10}],  # no. of layers for significance and offset sub-networks             
     architecture = [{'softmax': True, 'lambda': False}], # final activation: lambda=True indicates softplus   
-    nonnegative = [False],          # if True, apply only nonnegative weights at the top layer
+    nonnegative = [False, True],          # if True, apply only nonnegative weights at the top layer
     connection_freq = [2],          # vertical connection frequency for ResNet
     aux_weight = [0.1, 0., 0.01],    # auxilllary loss weight
-    shared_final_weights = [True], # if True, same weights of timesteps for all dimentions are trained
-    resnet = [True],               # if True, adds vertical connections
+    shared_final_weights = [False], # if True, same weights of timesteps for all dimentions are trained
+    resnet = [False, True],               # if True, adds vertical connections
 )
 
 if __name__ == '__main__':
@@ -156,6 +156,6 @@ class SOCNNmodel(utils.Model):
     
 # Runs a grid search for the above model    
 if __name__ == '__main__':
-    dataset, save_file = utils.parse(['SOCNN.py', '--dataset=artificialET1SS1n10000S16.csv']) #sys.argv) # ['SOCNN.py', '--dataset=household_async'])
+    dataset, save_file = utils.parse(sys.argv) # ['SOCNN.py', '--dataset=household_async'])
     runner = utils.ModelRunner(param_dict, dataset, save_file)
     runner.run(SOCNNmodel, log=log, limit=1)

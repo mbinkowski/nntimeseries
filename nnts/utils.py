@@ -11,6 +11,7 @@ The file contains i.a. the ModelRunner and Generator classes.
 from ._imports_ import *
 from .config import WDIR, SEP
 from . import keras_utils
+import sys
 
 def list_of_param_dicts(param_dict):
     """
@@ -49,7 +50,6 @@ class ModelRunner(object):
                  hdf5_dir='hdf5_keras_model_files'):
         self.param_list = list_of_param_dicts(param_dict)
         self.data_list = data_list
-        print('PRINT', [WDIR, save_file])
         self.save_file = os.path.join(WDIR, save_file)
         self.cdata = None
         self.cp = None
