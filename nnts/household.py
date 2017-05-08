@@ -70,10 +70,13 @@ class HouseholdGenerator(utils.Generator):
             X = download_and_unzip(url=self.url, verbose=self.verbose, 
                                    filename=self.filename, limit=self.limit)
         else:
+            print('HouseholdGENERATOR: reading X from file %s' % os.path.join(WDIR, self.filename))
             X = pd.read_pickle(os.path.join(WDIR, self.filename))
+        print('HouseholdGenerator: X.columns = ' + repr(X.columns))
         nanno = np.isnan(X[X.columns[1:]]).sum(axis=1)
         self.no_of_nan_rows = (nanno > 0).sum()
         X = X.loc[nanno == 0]
+        print('HOuseholdGenerator: X.columns = ' + repr(X.columns)) 
         X.sort_values(by='datetime', inplace=True)
         return X
         
