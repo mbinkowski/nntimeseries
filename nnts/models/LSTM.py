@@ -20,8 +20,8 @@ param_dict = dict(
     diffs = [False],            # if yes, work on 1st difference of series instead of original
     target_cols=['default'],    # 'default' or list of names of columns to predict  
     #training_parameters
-    patience = [20],             # no. of epoch after which learning rate will decrease if no improvement
-    reduce_nb = [3],            # no. of learning rate reductions
+    patience = [10],             # no. of epoch after which learning rate will decrease if no improvement
+    reduce_nb = [2],            # no. of learning rate reductions
     lr = [.00001],                # initial learning rate
     clipnorm = [0.001],           # max gradient norm
     #model parameters

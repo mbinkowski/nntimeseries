@@ -525,6 +525,7 @@ class Generator(object):
                      'value_output': np.concatenate(il*[x[:, il: il+1, cols]], axis=1)}
                 )           
             return regr
+            
         elif io_form == 'strategy1':
             def regr(x):
                 ab = x[:, [il, -1], cols]
@@ -546,6 +547,7 @@ class Generator(object):
 def parse(argv):
     dataset = []
     data_files = os.listdir(os.path.join(WDIR, 'data'))
+    print('parse, datafiles: ' + repr(data_files))
     save_file = ''
     if len(argv) > 1:
         argvv = [argv[1]]
@@ -561,7 +563,7 @@ def parse(argv):
             assert k in ['--dataset', '--save_file'], "wrong keyword: " + k
             if k == '--dataset':
                 if v == 'artificial':
-                    dataset = [os.path.join('data', file) for file in data_files if (v in file)]
+                    dataset = [file for file in data_files if (v in file)]
                 elif v == 'household':
                     dataset = [file for file in data_files if (v in file) and ('.pkl' in file)]
                     if len(dataset) == 0:
@@ -569,17 +571,17 @@ def parse(argv):
                 elif v == 'household_async':
                     dataset = [file for file in data_files if (v in file) and ('.pkl' in file)]
                     if len(dataset) == 0:
-                        dataset = ['household_async']                
+                        dataset = ['household_async.pkl']                
                 else:
                     for file in v.split(','):
                         assert file in data_files, repr(file) + ": no such file in data directory"
-                        dataset.append(os.path.join('data', file))
+                        dataset.append(file)
             else:
                 assert ',' not in v, "arguments not understood: " + k + '=' + v.replace(',', ' ')
                 save_file = v
     if len(dataset) == 0:
         print("no dataset specified, trying default: artificial")
-        dataset = [os.path.join('data', f) for f in data_files if ('artificial' in f)]    
+        dataset = [f for f in data_files if ('artificial' in f)]    
         assert len(dataset) > 0, 'no files for aritificial dataset available in the data directory' 
     if len(save_file) == 0:
         print("no save_file specified")
@@ -591,8 +593,11 @@ def parse(argv):
             save_file = os.path.join('results', 'artificial_' + argv[0][:-3].split(SEP)[-1] + '.pkl')
         else:
             raise ValueError("Wrong dataset: " + repr(dataset))
+    dataset = [os.path.join('data', f) for f in dataset]
+    print("datasets found: " + repr(dataset))
     print("results will be saved in " + repr(save_file))
     return dataset, save_file
+
     
 def get_generator(dataset):
     if 'async' in dataset:
@@ -605,3 +610,4 @@ def get_generator(dataset):
         raise ValueError("No data sample generator found for '%s' dataset" % dataset)
     print('using ' + repr(generator) + ' to draw samples')
     return generator
+

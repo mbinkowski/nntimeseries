@@ -66,6 +66,8 @@ class HouseholdGenerator(utils.Generator):
                                                 diffs=diffs)
 
     def get_X(self):
+        print('HG.get_X(): file = %s' % os.path.join(WDIR, self.filename))
+        print('HG.getX: ' + repr(os.path.isfile(os.path.join(WDIR, self.filename))))
         if not os.path.isfile(os.path.join(WDIR, self.filename)):
             X = download_and_unzip(url=self.url, verbose=self.verbose, 
                                    filename=self.filename, limit=self.limit)
@@ -103,7 +105,7 @@ class HouseholdAsynchronousGenerator(HouseholdGenerator):
         
         self.value_cols = [c for c in X.columns if 'time' not in c]
         self.ind_cols = [c +'_ind' for c in self.value_cols]
-        self.schedule_file = self.filename[:-4] + '_schedule.pkl'
+        self.schedule_file = self.filename[:-4] + '.schedule'
         if os.path.isfile(os.path.join(WDIR, self.schedule_file)) and (not new_schedule):
             print('Reading sampling schedule from the precomputed file %s' % \
                   os.path.join(WDIR, self.schedule_file))

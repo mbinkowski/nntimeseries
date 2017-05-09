@@ -414,3 +414,11 @@ class Test(keras.callbacks.Callback):
             if self.verbose > 0:
                 print('\n--- test_loss: %f ' % ev)
         self.test_hist['epoch_time'].append(time.time() - self.time0)
+        
+        
+def Activation_(act, name):
+    name += act
+    if act == 'leakyrelu':
+        return LeakyReLU(alpha=.1, name=name)
+    else:
+        return Activation(act, name=name)

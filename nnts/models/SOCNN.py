@@ -156,6 +156,6 @@ class SOCNNmodel(utils.Model):
     
 # Runs a grid search for the above model    
 if __name__ == '__main__':
-    dataset, save_file = utils.parse(sys.argv) # ['SOCNN.py', '--dataset=household_async'])
+    dataset, save_file = utils.parse(['SOCNN.py', '--dataset=household_async'])
     runner = utils.ModelRunner(param_dict, dataset, save_file)
     runner.run(SOCNNmodel, log=log, limit=1)
