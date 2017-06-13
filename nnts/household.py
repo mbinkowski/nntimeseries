@@ -1,8 +1,4 @@
 """
-Created on Thu Dec 15 13:57:01 2016
-
-@author: mbinkowski
-
 This file provides utilities for downloading and generating training and 
 validation samples from household electricity datasetc power consumption dataset
 

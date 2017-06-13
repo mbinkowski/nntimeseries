@@ -1,12 +1,9 @@
 """
-Created on Tue Nov 29 17:59:55 2016
-@author: mbinkowski
-
-Implementation of grid search for LSTM model. 
+Implementation of grid search for multi-layer LSTM model. 
 To change the model architecture edit the LSTMmodel function below. 
 """
 
-log=False                       # if True, all the verbose output is saved in logs/ 
+log=True                       # if True, all the verbose output is saved in logs/ 
 
 # dictionary of hyperparameter lists across which the grid search will run
 param_dict = dict(
@@ -97,6 +94,6 @@ class LSTMmodel(utils.Model):
 
 # Runs a grid search for the above model   
 if __name__ == '__main__':
-    dataset, save_file = utils.parse(['LSTM2.py', '--dataset=artificialET1SS1n10000S16.csv'])
+    dataset, save_file = utils.parse(sys.argv)#['LSTM2.py', '--dataset=artificialET1SS1n10000S16.csv'])
     runner = utils.ModelRunner(param_dict, dataset, save_file)
     runner.run(LSTMmodel, log=log, limit=1)

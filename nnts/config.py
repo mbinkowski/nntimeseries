@@ -1,14 +1,8 @@
 # -*- coding: utf-8 -*-
 """
-Created on Wed Mar 22 18:40:44 2017
-
-@author: mbinkowski
-
 Configuration file. User may set the working directory variable WDIR below to 
 the directory of his choice.
 """
-
-import os
 
 import sys, os
 

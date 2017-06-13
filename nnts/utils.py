@@ -1,10 +1,5 @@
-# -*- coding: utf-8 -*-
 """
-Created on Thu Dec 15 13:57:01 2016
-
-@author: mbinkowski
-
-The utilities file.
+Utilities file.
 
 The file contains i.a. the ModelRunner and Generator classes.
 """
@@ -288,7 +283,7 @@ class Model(object):
 ##            check_batch_axis=False,
 #            batch_size=self.batch_size#min(validation_size, self.tb_val_limit)
 #        )
-
+        print()
         hist = self.nn.fit_generator(
             self.G.gen('train', func=self.io_func, shuffle=self.shuffle),
             steps_per_epoch = (self.G.n_train - self.G.l) // self.batch_size,
@@ -387,6 +382,9 @@ class Generator(object):
         self.means = self.X.loc[:self.n_train, cols].mean(axis=0)
         self.stds = self.X.loc[:self.n_train, cols].std(axis=0)
         self.X.loc[:, cols] = (self.X[cols] - self.means)/(self.stds + (self.stds == 0)*.001)
+
+    def _get_ith_sample(self, i):
+        return self.asarray()[i - self.input_length: i + self.output_length, :]
         
     def gen(self, mode='train', batch_size=None, func=None, shuffle=True, 
             n_start=0, n_end=np.inf):
@@ -441,7 +439,6 @@ class Generator(object):
                 n_start -= self.l - 1
                 n_end -= self.l - 1
             order = np.arange(n_start + self.input_length, n_end - self.output_length)
-        XX = self.asarray()
         x = []
         while True:
             if shuffle:
@@ -452,7 +449,7 @@ class Generator(object):
                 if len(x) == batch_size:
                     yield func(np.array(x))
                     x = []
-                x.append(XX[i - self.input_length: i + self.output_length, :])
+                x.append(self._get_ith_sample(i))
     
     def make_io_func(self, io_form, cols='default', input_cols=None):
         """
@@ -562,7 +559,7 @@ def parse(argv):
             k, v = argg.split('=')
             assert k in ['--dataset', '--save_file'], "wrong keyword: " + k
             if k == '--dataset':
-                if v == 'artificial':
+                if v in ['artificial', 'lobster']:
                     dataset = [file for file in data_files if (v in file)]
                 elif v == 'household':
                     dataset = [file for file in data_files if (v in file) and ('.pkl' in file)]
@@ -591,6 +588,8 @@ def parse(argv):
             save_file = os.path.join('results', 'household_' + argv[0][:-3].split(SEP)[-1] + '.pkl') #'results/cnn2.pkl' #
         elif 'artificial' in dataset[0]:
             save_file = os.path.join('results', 'artificial_' + argv[0][:-3].split(SEP)[-1] + '.pkl')
+        elif 'lobster' in dataset[0]:
+            save_file = os.path.join('results', 'lobster_' + argv[0][:-3].split(SEP)[-1] + '.pkl')            
         else:
             raise ValueError("Wrong dataset: " + repr(dataset))
     dataset = [os.path.join('data', f) for f in dataset]
@@ -606,6 +605,8 @@ def get_generator(dataset):
         from nnts.household import HouseholdGenerator as generator
     elif 'artificial' in dataset:
         from nnts.artificial import ArtificialGenerator as generator  
+    elif 'lobster' in dataset:
+        from nnts.lobster import LOBSTERGenerator as generator
     else:
         raise ValueError("No data sample generator found for '%s' dataset" % dataset)
     print('using ' + repr(generator) + ' to draw samples')

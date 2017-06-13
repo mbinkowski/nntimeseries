@@ -1,11 +1,8 @@
 """
-Created on Tue Nov 29 17:59:55 2016
-@author: mbinkowski
-
 Implementation of Significance-Output Convolutional Neural Network. 
 To change the model architecture edit the SOmodel function below. 
 """
-log=False
+log=True
 
 param_dict = dict(
     # input parameters
@@ -13,9 +10,9 @@ param_dict = dict(
     train_share = [(.7, .8, 1.)],       # delimeters of the training and validation shares
     input_length = [60],            # input length (1 - stateful lstm)
     output_length = [1],            # no. of timesteps to predict (only 1 impelemented)
-    batch_size = [128],             # batch size
+    batch_size = [512],             # batch size
     objective=['regr'],             # only 'regr' (regression) implemented
-    diffs = [False],                # if True, work on 1st difference of series instead of original
+    diffs = [True],                # if True, work on 1st difference of series instead of original
     target_cols=['default'],        # 'default' or list of names of columns to predict    
     #training_parameters
     patience = [5],                 # no. of epoch after which learning rate will decrease if no improvement
@@ -27,10 +24,10 @@ param_dict = dict(
     filters = [16],                 # no. of convolutional filters per layer
     act = ['leakyrelu'],            # activation ('linear', 'relu', 'sigmoid', 'tanh', 'leakyrelu')
     kernelsize = [[1, 3], 1, 3],    # kernel size (if list of ints passed kernel size changes successively in consecutive layers)
-    layers_no = [{'sigs': 10, 'offs': 1},
-                 {'sigs': 10, 'offs': 2},
-                 {'sigs': 10, 'offs': 5},
-                 {'sigs': 10, 'offs': 10}],  # no. of layers for significance and offset sub-networks             
+    layers_no = [{'sigs': 10, 'offs': 1}],
+#                 {'sigs': 10, 'offs': 2},
+#                 {'sigs': 10, 'offs': 5},
+#                 {'sigs': 10, 'offs': 10}],  # no. of layers for significance and offset sub-networks             
     architecture = [{'softmax': True, 'lambda': False}], # final activation: lambda=True indicates softplus   
     nonnegative = [False, True],          # if True, apply only nonnegative weights at the top layer
     connection_freq = [2],          # vertical connection frequency for ResNet
@@ -156,6 +153,6 @@ class SOCNNmodel(utils.Model):
     
 # Runs a grid search for the above model    
 if __name__ == '__main__':
-    dataset, save_file = utils.parse(['SOCNN.py', '--dataset=household_async'])
+    dataset, save_file = utils.parse(sys.argv)#['SOCNN.py', '--dataset=lobster'])
     runner = utils.ModelRunner(param_dict, dataset, save_file)
     runner.run(SOCNNmodel, log=log, limit=1)

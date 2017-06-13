@@ -1,8 +1,5 @@
 """
-Created on Tue Nov 29 17:59:55 2016
-@author: mbinkowski
-
-Implementation of Linear Regression model. 
+Implementation of the linear model. 
 To change the model architecture edit the LRmodel function below. 
 """
 
@@ -21,9 +18,9 @@ param_dict = dict(
     target_cols=['default'],    # 'default' or list of names of columns to predict
     #training_parameters
     patience = [10],             # no. of epoch after which learning rate will decrease if no improvement
-    reduce_nb = [2],            # no. of learning rate reductions
+    reduce_nb = [1],            # no. of learning rate reductions
     lr = [.001],                # initial learning rate
-    clipnorm = [1.0],           # max gradient norm
+    clipnorm = [100.0],         # max gradient norm
 )
 
 if __name__ == '__main__':

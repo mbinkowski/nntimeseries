@@ -1,8 +1,5 @@
-# -*- coding: utf-8 -*-
 """
-Created on Fri Jul 29 16:31:16 2016
-
-@author: mbinkowski
+Utilities file.
 """
 from ._imports_ import *
 

@@ -1,8 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Created on Wed Mar 22 18:31:31 2017
-
-@author: mbinkowski
+Import file.
 """
 
 # misc

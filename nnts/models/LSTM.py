@@ -1,7 +1,4 @@
 """
-Created on Tue Nov 29 17:59:55 2016
-@author: mbinkowski
-
 Implementation of grid search for LSTM model. 
 To change the model architecture edit the LSTMmodel function below. 
 """

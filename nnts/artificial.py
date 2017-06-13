@@ -1,7 +1,4 @@
 """
-Created on Fri Feb  3 16:43:33 2017
-@author: mbinkowski
-
 Utilities for generation of artificial autoregressive series with synchronous 
 and asynchronous observations from many noisy sources.
 

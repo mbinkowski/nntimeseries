@@ -1,9 +1,6 @@
 """
-Created on Tue Nov 29 17:59:55 2016
-@author: mbinkowski
-
 Implementation of Convolutional Neural Network grid search.
-To change the model architecture edit the SOmodel function below. 
+To change the model architecture edit the CNNmodel function below. 
 """
 
 log=False

@@ -1,8 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Created on Thu Mar 23 12:19:40 2017
-
-@author: mbinkowski
+Imports file.
 """
 
 import sys, os

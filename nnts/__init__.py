@@ -1,8 +1,4 @@
 """
-Created on Tue Nov 29 17:59:55 2016
-
-@author: mbinkowski
-
 Initialization file.
 """
 
