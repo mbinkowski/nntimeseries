@@ -3,30 +3,30 @@ Implementation of grid search for multi-layer LSTM model.
 To change the model architecture edit the LSTMmodel function below. 
 """
 
-log=True                       # if True, all the verbose output is saved in logs/ 
+log=False                     # if True, all the verbose output is saved in logs/ 
 
 # dictionary of hyperparameter lists across which the grid search will run
 param_dict = dict(
     #input parameters
     verbose = [1 + int(log)],   # verbosity
-    train_share = [(.7, .8, 1.)],   # delimeters of the training and validation shares
+    train_share = [(.8, .9, 1.)],   # delimeters of the training and validation shares
     input_length = [60],         # input length (1 - stateful lstm)
     output_length = [1],        # no. of timesteps to predict (only 1 impelemented)
-    batch_size = [128],         # batch size
+    batch_size = [64],         # batch size
     objective=['regr'],         # only 'regr' (regression) implemented
     diffs = [False],            # if yes, work on 1st difference of series instead of original
-    target_cols=['default'],    # 'default' or list of names of columns to predict  
+    target_cols=[1],    # 'default' or list of names of columns to predict  
     #training_parameters
-    patience = [20],             # no. of epoch after which learning rate will decrease if no improvement
+    patience = [5],             # no. of epoch after which learning rate will decrease if no improvement
     reduce_nb = [3],            # no. of learning rate reductions
     lr = [.001],                # initial learning rate
     clipnorm = [0.001],           # max gradient norm
     #model parameters
     norm = [1],                 # max norm for fully connected top layer's weights    
-    layer_size = [32],  # size of lstm layer
+    layer_size = [16],  # size of lstm layer
     act = ['leakyrelu'],        # activation ('linear', 'relu', 'sigmoid', 'tanh', 'leakyrelu') 
     dropout = [0.2],              # dropout rate
-    layers_no = [3],            # no. of LSTM layers
+    layers_no = [2],            # no. of LSTM layers
 )
 
 if __name__ == '__main__':
@@ -94,6 +94,6 @@ class LSTMmodel(utils.Model):
 
 # Runs a grid search for the above model   
 if __name__ == '__main__':
-    dataset, save_file = utils.parse(sys.argv)#['LSTM2.py', '--dataset=artificialET1SS1n10000S16.csv'])
+    dataset, save_file = utils.parse(['LSTM2.py', '--dataset=lobster'])#sys.argv)#
     runner = utils.ModelRunner(param_dict, dataset, save_file)
     runner.run(LSTMmodel, log=log, limit=1)

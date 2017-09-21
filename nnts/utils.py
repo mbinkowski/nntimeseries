@@ -88,10 +88,10 @@ class ModelRunner(object):
                           parameter setting
             irrelevant  - list of paramters irrelevant while comparing a 
                           setting with the previously computed results. This
-                          parameter has no impact if read)file is not specified
+                          parameter has no impact if read file is not specified
         Returns
             list of dictionaries; each dictionary contains data from keras 
-            History.history dicttionary, parameter dictionary and other data
+            History.history dictionary, parameter dictionary and other data
         """
         if log:
             old_stdout = sys.stdout
@@ -218,6 +218,21 @@ class Model(object):
             tb_val_limit    - max number of validation samples to use by TensorBoard
         """
         self.name = "Model"
+        self._set_params(params)
+        self.datasource = datasource
+        self.tensorboard_dir = tensorboard_dir
+        self.tb_val_limit = tb_val_limit
+        generator_class = get_generator(datasource)
+        self.G = generator_class(filename=datasource, train_share=self.train_share,
+                                 input_length=self.input_length, 
+                                 output_length=self.output_length, 
+                                 verbose=self.verbose,
+                                 batch_size=self.batch_size, 
+                                 diffs=self.diffs)
+        self.idim, self.odim = self.G.get_dims(cols=self.target_cols)   
+        self.nn, self.io_func, self.callbacks = self.build()
+        
+    def _set_params(self, params):
         self.train_share = (.8, 1)      # default delimeters of the training and validation shares
         self.input_length = 60          # default input length 
         self.output_length = 1          # default no. of timesteps to predict (only 1 impelemented)
@@ -227,31 +242,21 @@ class Model(object):
         self.target_cols = 'default'    # 'default' or list of names of columns to predict
         self.patience = 5               # default no. of epoch after which learning rate will decrease if no improvement
         self.reduce_nb = 2              # defualt no. of learning rate reductions
+        self.shuffle = True             # default wheather to shuffle batches during training
         self.__dict__.update(params)
-        self.datasource = datasource
-        self.tensorboard_dir = tensorboard_dir
-        self.tb_val_limit = tb_val_limit
-        self.shuffle = True
-        generator = get_generator(datasource)
-        self.G = generator(filename=datasource, train_share=self.train_share,
-                           input_length=self.input_length, 
-                           output_length=self.output_length, 
-                           verbose=self.verbose,
-                           batch_size=self.batch_size, 
-                           diffs=self.diffs)
-        self.idim, self.odim = self.G.get_dims(cols=self.target_cols)   
-        self.nn, self.io_func, self.callbacks = self.build()
-        
 
     def build(self):
         """
         Classes that inherit from <nnts.utils.Model class> should implement 
         <build> method so that it returns:
             nn                 - keras.models.Model object
-            train_gen, val_gen - results from a nnts.utils.Generator.gen method
+            io_func            - function that converts raw array to the input 
+                                 form that feeds the model. Can be obtained through
+                                 <nnts.utils.Generator.make_io_func> method
             callbacks          - list of keras.callbacks.Callback objects
         """   
-        pass
+        raise NotImplementedError("Called from an abstract class. Implement \
+                                  <build> method in a derived class.")
     
     def run(self):
         """
@@ -276,13 +281,6 @@ class Model(object):
         validation_size = self.G.n_valid - self.G.n_train - self.G.l
         self.tb_gen = self.G.gen('valid', func=self.io_func, shuffle=self.shuffle,
                             batch_size=min(validation_size, self.tb_val_limit))
-#        val_X, val_y = next(tb_gen)
-#        val_X, val_y, val_weights = self.nn._standardize_user_data(
-#            val_X, val_y,
-#            sample_weight=None,
-##            check_batch_axis=False,
-#            batch_size=self.batch_size#min(validation_size, self.tb_val_limit)
-#        )
         print()
         hist = self.nn.fit_generator(
             self.G.gen('train', func=self.io_func, shuffle=self.shuffle),
@@ -319,7 +317,7 @@ class Generator(object):
     """
     def __init__(self, X, train_share=(.8, 1), input_length=1, output_length=1, 
                  verbose=1, limit=np.inf, batch_size=16, excluded=[], 
-                 diffs=False):
+                 diffs=False, exclude_diff=[]):
         self.X = X
         self.diffs = diffs
         if limit < np.inf:
@@ -339,14 +337,14 @@ class Generator(object):
             self.test = False
         self.excluded = excluded
         self.cols = [c for c in self.X.columns if c not in self.excluded]
-        self._scale()
+        self._scale(exclude_diff=exclude_diff)
     
     def asarray(self, cols=None):
         if cols is None:
             cols = self.cols
         return np.asarray(self.X[cols], dtype=np.float32)
 
-    def get_target_col_ids(self, ids=True, cols='default'):
+    def get_target_col_ids(self, cols, ids=True):
         if cols in ['default', 'all']:
             if ids:
                 return np.arange(len(self.cols))
@@ -365,7 +363,7 @@ class Generator(object):
     def get_dim(self):
         return self.asarray().shape[1]
 
-    def get_dims(self, cols='default'):
+    def get_dims(self, cols):
         return self.get_dim(), len(self.get_target_col_ids(cols=cols))
         
     def exclude_columns(self, cols):
@@ -416,9 +414,9 @@ class Generator(object):
         if func is None:
             func = lambda x: (x[:, :self.input_length, :], x[:, self.input_length:, :])
         if mode in ['train', 'valid']:
-            order = np.random.permutation(np.arange(
+            order = np.arange(
                 self.input_length, self.n_valid - self.output_length
-            ))
+            )
             o_len = int(len(order) * self.train_share[0] / self.train_share[1])
             order = order[:o_len] if (mode == 'train') else order[o_len:]
         elif mode == 'test':
@@ -451,7 +449,7 @@ class Generator(object):
                     x = []
                 x.append(self._get_ith_sample(i))
     
-    def make_io_func(self, io_form, cols='default', input_cols=None):
+    def make_io_func(self, io_form, cols, input_cols=None):
         """
         Function that defines input/output format function to be passed to 
         self.gen.
@@ -476,7 +474,7 @@ class Generator(object):
             model)
                           
         """
-        cols = self.get_target_col_ids(cols)
+        cols = self.get_target_col_ids(cols=cols)
         il = self.input_length
         if io_form == 'stateful_lstm_regression':
             def regr(x):
@@ -559,7 +557,7 @@ def parse(argv):
             k, v = argg.split('=')
             assert k in ['--dataset', '--save_file'], "wrong keyword: " + k
             if k == '--dataset':
-                if v in ['artificial', 'lobster']:
+                if v in ['artificial', 'lobster', 'book']:
                     dataset = [file for file in data_files if (v in file)]
                 elif v == 'household':
                     dataset = [file for file in data_files if (v in file) and ('.pkl' in file)]
@@ -589,7 +587,9 @@ def parse(argv):
         elif 'artificial' in dataset[0]:
             save_file = os.path.join('results', 'artificial_' + argv[0][:-3].split(SEP)[-1] + '.pkl')
         elif 'lobster' in dataset[0]:
-            save_file = os.path.join('results', 'lobster_' + argv[0][:-3].split(SEP)[-1] + '.pkl')            
+            save_file = os.path.join('results', 'lobster_' + argv[0][:-3].split(SEP)[-1] + '.pkl')     
+        elif 'book' in dataset[0]:
+            save_file = os.path.join('results', 'book_' + argv[0][:-3].split(SEP)[-1] + '.pkl')             
         else:
             raise ValueError("Wrong dataset: " + repr(dataset))
     dataset = [os.path.join('data', f) for f in dataset]
@@ -607,6 +607,8 @@ def get_generator(dataset):
         from nnts.artificial import ArtificialGenerator as generator  
     elif 'lobster' in dataset:
         from nnts.lobster import LOBSTERGenerator as generator
+    elif 'book' in dataset:
+        from nnts.book import BookGenerator as generator
     else:
         raise ValueError("No data sample generator found for '%s' dataset" % dataset)
     print('using ' + repr(generator) + ' to draw samples')

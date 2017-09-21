@@ -65,7 +65,7 @@ class LOBSTERGenerator(utils.Generator):
         
         self.Bchunks, self.Mchunks = [], []
         self.mess['Size'] = self.mess['Size'] * self.mess['Direction']
-        for jj in range(1, 7):
+        for jj in range(1, 6):
             self.mess['Type%d' % jj] = (self.mess['Type'] == jj)
         for k in range(int(np.ceil(float(self.book.shape[0])/chunk))):
             book0 = self.book.loc[k*chunk: (k+1) * chunk - 1]
@@ -87,7 +87,7 @@ class LOBSTERGenerator(utils.Generator):
         self.Pmid = ((self.book['AskP 1'] + self.book['BidP 1'])//200 + 1) * 100  
         
             
-    def get_target_col_ids(self, ids=True, cols='default'):
+    def get_target_col_ids(self, cols, ids=True):
         if cols == 'default':
             return np.arange(6, 6 + 2 * self.keep_lvl)
         elif type(cols) == int:
@@ -97,7 +97,7 @@ class LOBSTERGenerator(utils.Generator):
     def get_dim(self):
         return self.keep_lvl * 2 + 6
 
-    def get_dims(self, cols='default'):
+    def get_dims(self, cols):
         return self.get_dim(), len(self.get_target_col_ids(cols=cols))
             
     def _get_ith_sample(self, i, return_xy=False):
@@ -111,7 +111,8 @@ class LOBSTERGenerator(utils.Generator):
         i_max = i//self.chunk
         i_min = (i - self.input_length + 2)//self.chunk
         i_chunks = [chunk.loc[i - self.input_length + 2: i, iP] for chunk in self.Mchunks[i_min: i_max + 1]]
-        i_Types = self.mess.loc[i - self.input_length + 2: i, ['Type%d' % jj for jj in range(1, 7)]]
+        i_Types = self.mess.loc[i - self.input_length + 2: i, ['Time'] + ['Type%d' % jj for jj in range(1, 6)]]
+        i_Types['Time'] -= i_Types.loc[i, 'Time']
         Messages = np.c_[np.array(i_Types), np.array(pd.concat(i_chunks))]
         
         if self.diffs:

@@ -51,4 +51,4 @@ else:
     theano.config.blas.ldflags = ''
     ###############################
     
-from nnts import utils, keras_utils
+from nnts import utils, keras_utils, user

@@ -1,47 +1,69 @@
+# -*- coding: utf-8 -*-
 """
-Implementation of Significance-Output Convolutional Neural Network. 
-To change the model architecture edit the SOmodel function below. 
-"""
-log=True
+Created on Tue Sep 19 15:23:02 2017
 
+@author: mbinkowski
+
+Code to run SOCNN model on sample toy dataset.
+"""
+if __name__ == '__main__':
+    from _imports_ import *
+    
+# Defining example data frame
+# column A enumerates entries, B contains random binomial variables, 
+# columns C and D contain random noise, while column E is a sum of last 10 
+# values of B multiplied by D.  
+df = pd.DataFrame({'A': np.arange(1000), 
+                   'B': (np.random.rand(1000)> .5) * 1.0, 
+                   'C': np.random.rand(1000), 
+                   'D': np.random.rand(1000)})
+df['E'] = df['B'] * df['D'] 
+df['E'] = np.cumsum(df['E'])
+df.loc[10:, 'E'] -= np.array(df['E'][:-10])
+print(df.head(20))
+
+dataset_file = os.path.join(utils.WDIR, 'data', 'example1.csv')
+save_file = os.path.join(utils.WDIR, 'results', 'example_model.pkl')
+df.to_csv(dataset_file)
+
+# Defining parameters for training.
+# We want to train models that predict column A given B, C and D, and A and E, 
+# given B, C and D.  
+log = False
 param_dict = dict(
     # input parameters
+    input_column_names = [['B', 'C', 'D']],    # input columns 
+    target_column_names = [['E'], ['A', 'E']], # target columns
+    diff_column_names = [[]],                  # columns to take first difference of   
     verbose = [1 + int(log)],       # verbosity
     train_share = [(.8, .9, 1.)],       # delimeters of the training and validation shares
-    input_length = [60],            # input length (1 - stateful lstm)
+    input_length = [20],            # input length (1 - stateful lstm)
     output_length = [1],            # no. of timesteps to predict (only 1 impelemented)
-    batch_size = [64],             # batch size
+    batch_size = [16],              # batch size
     objective=['regr'],             # only 'regr' (regression) implemented
-    diffs = [True],                # if True, work on 1st difference of series instead of original
-    target_cols=[1],        # 'default' or list of names of columns to predict    
     #training_parameters
     patience = [5],                 # no. of epoch after which learning rate will decrease if no improvement
     reduce_nb = [2],                # no. of learning rate reductions
-    lr = [.01],                    # initial learning rate
+    lr = [.01],                     # initial learning rate
     clipnorm = [1.0],               # max gradient norm
     #model parameters
     norm = [10],                    # max norm for fully connected top layer's weights
-    filters = [8],                 # no. of convolutional filters per layer
+    filters = [8],                  # no. of convolutional filters per layer
     act = ['leakyrelu'],            # activation ('linear', 'relu', 'sigmoid', 'tanh', 'leakyrelu')
     kernelsize = [[1, 3], 1, 3],    # kernel size (if list of ints passed kernel size changes successively in consecutive layers)
-    layers_no = [{'sigs': 10, 'offs': 1}],
-#                 {'sigs': 10, 'offs': 2},
-#                 {'sigs': 10, 'offs': 5},
-#                 {'sigs': 10, 'offs': 10}],  # no. of layers for significance and offset sub-networks             
+    layers_no = [{'sigs': 5, 'offs': 1}], # no. of layers for significance and offset sub-networks             
     architecture = [{'softmax': True, 'lambda': False}], # final activation: lambda=True indicates softplus   
     nonnegative = [False],          # if True, apply only nonnegative weights at the top layer
     connection_freq = [2],          # vertical connection frequency for ResNet
-    aux_weight = [0.],    # auxilllary loss weight
+    aux_weight = [0.1],              # auxilllary loss weight
     shared_final_weights = [False], # if True, same weights of timesteps for all dimentions are trained
     resnet = [False],               # if True, adds vertical connections
 )
 
-if __name__ == '__main__':
-    from _imports_ import *
-#else:
-#    from ._imports_ import *
 
-class SOCNNmodel(utils.Model):
+# defining the SOCNN model class
+# model class has to inherit from user.UserModel and implement 'build' method 
+class SOCNNmodel(user.UserModel):
     """
     Class defines the SOCNN network structure to be passed to utils.ModelRunner
     """
@@ -151,8 +173,7 @@ class SOCNNmodel(utils.Model):
     
         return nn, io_func, callbacks
     
-# Runs a grid search for the above model    
+# Run a grid search for the above model    
 if __name__ == '__main__':
-    dataset, save_file = utils.parse(sys.argv)#['SOCNN.py', '--dataset=lobster'])
-    runner = utils.ModelRunner(param_dict, dataset, save_file)
+    runner = utils.ModelRunner(param_dict, [dataset_file], save_file)
     runner.run(SOCNNmodel, log=log, limit=1)
