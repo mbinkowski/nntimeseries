@@ -3,7 +3,7 @@ Implementation of Convolutional Neural Network grid search.
 To change the model architecture edit the CNNmodel function below. 
 """
 
-log=True
+log=False
 
 param_dict = dict(
     #i/o parameters                  
@@ -101,6 +101,6 @@ class CNNmodel(utils.Model):
 
 # Runs a grid search for the above model    
 if __name__ == '__main__':
-    dataset, save_file = utils.parse(sys.argv) # ['CNN.py', '--dataset=artificialET1SS1n10000S16.csv'])#
+    dataset, save_file = utils.parse( ['CNN.py', '--dataset=artificialET1SS1n10000S16.csv'])#sys.argv) #
     runner = utils.ModelRunner(param_dict, dataset, save_file)
     runner.run(CNNmodel, log=log, limit=1)

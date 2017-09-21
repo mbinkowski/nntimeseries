@@ -195,7 +195,7 @@ class NoisySignal(object):
 class ArtificialGenerator(utils.Generator):
     def __init__(self, filename=os.path.join('data', 'artificialET0SS0n10000S2.csv'),
 		 train_share=(.8, 1.), input_length=1, output_length=1, verbose=1, 
-                 limit=np.inf, batch_size=16, diffs=False):
+                 limit=np.inf, batch_size=16, diffs=False, **kwargs):
         self.filename = filename
         X = pd.read_csv(os.path.join(WDIR, filename), index_col=0)
         if 'valid' in X.columns:

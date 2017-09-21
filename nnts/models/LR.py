@@ -25,8 +25,12 @@ param_dict = dict(
 
 if __name__ == '__main__':
     from _imports_ import *
-
-class LRmodel(utils.Model):
+else:
+    from ._imports_ import *
+for mod in ['utils', 'nnts', 'np', 'pd']:
+    print(mod + ': ', mod in globals())
+print(nnts.utils)    
+class LRmodel(nnts.utils.Model):
     """
     Class defines the Linear Regression model structure to be passed to 
     utils.ModelRunner.

@@ -47,7 +47,7 @@ class HouseholdGenerator(utils.Generator):
     def __init__(self, filename=os.path.join('data', 'household.pkl'), 
                  url='https://archive.ics.uci.edu/ml/machine-learning-databases/00235/household_power_consumption.zip',
                  train_share=(.8, 1.), input_length=1, output_length=1, verbose=1, 
-                 limit=np.inf, batch_size=16, diffs=False):
+                 limit=np.inf, batch_size=16, diffs=False, **kwargs):
         self.filename = filename
         self.url = url
         self.verbose = verbose
@@ -90,7 +90,7 @@ class HouseholdAsynchronousGenerator(HouseholdGenerator):
                  url='https://archive.ics.uci.edu/ml/machine-learning-databases/00235/household_power_consumption.zip',
                  train_share=(.8, 1.), input_length=1, output_length=1, verbose=1, 
                  limit=np.inf, batch_size=16, diffs=False, new_schedule=False,
-                 duration_type='deterministic'):
+                 duration_type='deterministic', **kwargs):
         if filename[-4:] != '.pkl':
             filename += '.pkl'
         self.filename = filename

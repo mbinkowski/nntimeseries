@@ -12,7 +12,7 @@ class LOBSTERGenerator(utils.Generator):
     def __init__(self, filename, keep_lvl=10, _time=.01,
                  train_share=(.8, 1), input_length=100, output_length=1, 
                  verbose=1, limit=np.inf, batch_size=16, diffs=True,
-                 chunk=10000):
+                 chunk=10000, **kwargs):
         self.keep_lvl = keep_lvl
         self.time = _time
         

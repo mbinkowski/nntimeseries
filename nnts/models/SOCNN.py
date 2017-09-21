@@ -2,7 +2,7 @@
 Implementation of Significance-Output Convolutional Neural Network. 
 To change the model architecture edit the SOmodel function below. 
 """
-log=True
+log=False
 
 param_dict = dict(
     # input parameters
@@ -13,7 +13,7 @@ param_dict = dict(
     batch_size = [64],             # batch size
     objective=['regr'],             # only 'regr' (regression) implemented
     diffs = [True],                # if True, work on 1st difference of series instead of original
-    target_cols=[1],        # 'default' or list of names of columns to predict    
+    target_cols=['default'],        # 'default' or list of names of columns to predict    
     #training_parameters
     patience = [5],                 # no. of epoch after which learning rate will decrease if no improvement
     reduce_nb = [2],                # no. of learning rate reductions
@@ -153,6 +153,6 @@ class SOCNNmodel(utils.Model):
     
 # Runs a grid search for the above model    
 if __name__ == '__main__':
-    dataset, save_file = utils.parse(sys.argv)#['SOCNN.py', '--dataset=lobster'])
+    dataset, save_file = utils.parse(['SOCNN.py', '--dataset=household'])#sys.argv)#
     runner = utils.ModelRunner(param_dict, dataset, save_file)
     runner.run(SOCNNmodel, log=log, limit=1)
