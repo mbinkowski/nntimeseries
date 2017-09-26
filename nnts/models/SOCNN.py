@@ -137,7 +137,7 @@ class SOCNNmodel(utils.Model):
             
         main_output = Permute((2,1), name='main_output')(out)
         
-        nn = keras_utils.Model(inputs=[inp, value_input], outputs=[main_output, value_output])
+        nn = keras.models.Model(inputs=[inp, value_input], outputs=[main_output, value_output])
         
         # network training settings
         nn.compile(optimizer=keras.optimizers.Adam(lr=self.lr, clipnorm=self.clipnorm),
