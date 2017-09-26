@@ -32,8 +32,11 @@ param_dict = dict(
     resnet = [False],               # if True, adding vertical connections        
 )
 
-if __name__ == '__main__':  
+if __name__ == '__main__':
     from _imports_ import *
+else:
+    from .. import *
+    from ..utils import *
 
 class CNNmodel(utils.Model):
     """
@@ -85,8 +88,8 @@ class CNNmodel(utils.Model):
         
         nn = Model(inputs=inp, outputs=out)
         
-        for l in nn.layers:
-            print('Layer ' + l.name + ' shapes: ' + repr((l.input_shape, l.output_shape)))
+#        for l in nn.layers:
+#            print('Layer ' + l.name + ' shapes: ' + repr((l.input_shape, l.output_shape)))
         # network training settings
         nn.compile(optimizer=keras.optimizers.Adam(lr=self.lr, 
                                                    clipnorm=self.clipnorm),

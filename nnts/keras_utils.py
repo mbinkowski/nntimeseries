@@ -1,7 +1,8 @@
 """
 Utilities file.
 """
-from ._imports_ import *
+from .utils import *
+from .config import WDIR, SEP
 
 def cross_entropy_loss(y_true, y_pred):
     epsilon = 1.0e-9

@@ -1,13 +1,15 @@
 """
 Initialization file.
 """
-
-import os 
+# self & directory structure
 from .config import WDIR
-from . import utils
 
+import os
 for directory in ['logs', 'results', 'data', 'tensorboard']:
     if directory not in os.listdir(WDIR):
         os.mkdir(WDIR + directory)
 
-__all__ = ['artificial', 'household', 'keras_utils', 'utils', 'config', 'models', 'user', 'user_models', 'models']
+from . import utils, keras_utils, artificial
+from . import models
+
+__all__ = ['artificial', 'household', 'keras_utils', 'utils', 'config', 'models']

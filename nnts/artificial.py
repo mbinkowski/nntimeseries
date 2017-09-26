@@ -6,7 +6,7 @@ Includes sample generator for utils.ModelRunner that generates training and
 validation samples for network training with generated artificial data.
 """
 
-from ._imports_ import *
+from .utils import *
 from .config import WDIR
     
 class BinaryNoise(object):
@@ -192,7 +192,7 @@ class NoisySignal(object):
         return self.df
 
 
-class ArtificialGenerator(utils.Generator):
+class ArtificialGenerator(Generator):
     def __init__(self, filename=os.path.join('data', 'artificialET0SS0n10000S2.csv'),
 		 train_share=(.8, 1.), input_length=1, output_length=1, verbose=1, 
                  limit=np.inf, batch_size=16, diffs=False, **kwargs):

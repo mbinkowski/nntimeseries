@@ -31,10 +31,13 @@ param_dict = dict(
 
 if __name__ == '__main__':
     from _imports_ import *
+else:
+    from .. import *
+    from ..utils import *
     
 class LSTMmodel(utils.Model):
     """
-    Class defines the LSTM network structure to be passed to utils.ModelRunner
+    Class defines the LSTM network structure to be passed to nnts.utils.ModelRunner
     """
     def build(self):
         """

@@ -3,5 +3,6 @@
 Initialisation file.
 """
 
-__all__ = ['LR', 'LSTM', 'CNN', 'SOCNN', '_imports_']
-from ._imports_ import *
+__all__ = ['LR', 'LSTM', 'CNN', 'SOCNN']
+
+from . import LR, LSTM, CNN, SOCNN

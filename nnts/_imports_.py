@@ -52,4 +52,5 @@ else:
     ###############################
     
 from nnts import utils, keras_utils, user, models
+from nnts.models import *
 

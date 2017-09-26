@@ -38,8 +38,9 @@ param_dict = dict(
 
 if __name__ == '__main__':
     from _imports_ import *
-#else:
-#    from ._imports_ import *
+else:
+    from .. import *
+    from ..utils import *
 
 class SOCNNmodel(utils.Model):
     """
@@ -136,7 +137,7 @@ class SOCNNmodel(utils.Model):
             
         main_output = Permute((2,1), name='main_output')(out)
         
-        nn = Model(inputs=[inp, value_input], outputs=[main_output, value_output])
+        nn = keras_utils.Model(inputs=[inp, value_input], outputs=[main_output, value_output])
         
         # network training settings
         nn.compile(optimizer=keras.optimizers.Adam(lr=self.lr, clipnorm=self.clipnorm),

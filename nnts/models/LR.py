@@ -20,17 +20,16 @@ param_dict = dict(
     patience = [10],             # no. of epoch after which learning rate will decrease if no improvement
     reduce_nb = [1],            # no. of learning rate reductions
     lr = [.001],                # initial learning rate
-    clipnorm = [100.0],         # max gradient norm
+    clipnorm = [1000.0],         # max gradient norm
 )
 
 if __name__ == '__main__':
     from _imports_ import *
 else:
-    from ._imports_ import *
-for mod in ['utils', 'nnts', 'np', 'pd']:
-    print(mod + ': ', mod in globals())
-print(nnts.utils)    
-class LRmodel(nnts.utils.Model):
+    from .. import *
+    from ..utils import *
+            
+class LRmodel(utils.Model):
     """
     Class defines the Linear Regression model structure to be passed to 
     utils.ModelRunner.
@@ -50,7 +49,7 @@ class LRmodel(nnts.utils.Model):
                     name='value_input')
         out = Dense(self.output_length * self.odim, activation='softmax')(inp)
         
-        nn = Model(inputs=inp, outputs=out)
+        nn = keras.models.Model(inputs=inp, outputs=out)
      
         # training settings
         nn.compile(optimizer=keras.optimizers.Adam(lr=self.lr, 
@@ -67,6 +66,6 @@ class LRmodel(nnts.utils.Model):
 
 # Runs a grid search for the above model    
 if __name__ == '__main__':
-    dataset, save_file = utils.parse(sys.argv)
+    dataset, save_file = utils.parse(sys.argv)#['LR.py', '--dataset=household'])#
     runner = utils.ModelRunner(param_dict, dataset, save_file)
     runner.run(LRmodel, log=log, limit=1)

@@ -5,7 +5,7 @@ validation samples from household electricity datasetc power consumption dataset
 https://archive.ics.uci.edu/ml/datasets/Individual+household+electric+power+consumption
 """
 
-from ._imports_ import *
+from .utils import *
 from .config import WDIR
 
 def download_and_unzip(url='https://archive.ics.uci.edu/ml/machine-learning-databases/00235/household_power_consumption.zip',
@@ -39,7 +39,7 @@ def download_and_unzip(url='https://archive.ics.uci.edu/ml/machine-learning-data
     os.rmdir(os.path.join(WDIR, 'data', tmp))
     return X
     
-class HouseholdGenerator(utils.Generator):
+class HouseholdGenerator(Generator):
     """
     Class that provides sample generator for Household Electricity Dataset. 
     
@@ -62,19 +62,17 @@ class HouseholdGenerator(utils.Generator):
                                                 diffs=diffs)
 
     def get_X(self):
-        print('HG.get_X(): file = %s' % os.path.join(WDIR, self.filename))
-        print('HG.getX: ' + repr(os.path.isfile(os.path.join(WDIR, self.filename))))
         if not os.path.isfile(os.path.join(WDIR, self.filename)):
             X = download_and_unzip(url=self.url, verbose=self.verbose, 
                                    filename=self.filename, limit=self.limit)
         else:
-            print('HouseholdGENERATOR: reading X from file %s' % os.path.join(WDIR, self.filename))
+#            print('HouseholdGENERATOR: reading X from file %s' % os.path.join(WDIR, self.filename))
             X = pd.read_pickle(os.path.join(WDIR, self.filename))
-        print('HouseholdGenerator: X.columns = ' + repr(X.columns))
+#        print('HouseholdGenerator: X.columns = ' + repr(X.columns))
         nanno = np.isnan(X[X.columns[1:]]).sum(axis=1)
         self.no_of_nan_rows = (nanno > 0).sum()
         X = X.loc[nanno == 0]
-        print('HOuseholdGenerator: X.columns = ' + repr(X.columns)) 
+#        print('HOuseholdGenerator: X.columns = ' + repr(X.columns)) 
         X.sort_values(by='datetime', inplace=True)
         return X
         

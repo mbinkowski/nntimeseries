@@ -31,6 +31,9 @@ param_dict = dict(
 
 if __name__ == '__main__':
     from _imports_ import *
+else:
+    from .. import *
+    from ..utils import *
     
 class LSTMmodel(utils.Model):
     """

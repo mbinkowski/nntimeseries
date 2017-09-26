@@ -4,9 +4,8 @@ Utilities file.
 The file contains i.a. the ModelRunner and Generator classes.
 """
 from ._imports_ import *
+from . import keras_utils
 from .config import WDIR, SEP
-from . import keras_utils, user
-import sys
 
 def list_of_param_dicts(param_dict):
     """
@@ -108,7 +107,6 @@ class ModelRunner(object):
                                                            irrelevant=irrelevant)
                     if already_computed >= limit:
                         print('Found %d (>= limit = %d) computed results for the setting:' % (already_computed, limit))
-                        print(data)
                         for k, v in params.items():
                             print(str(k).rjust(15) + ': ' +  str(v))
                         continue
@@ -121,7 +119,6 @@ class ModelRunner(object):
                 setting_time = time.time()
                 while (errors < trials) and (success < required_success):
 #                    try:
-                    print(data)
                     print('As yet, for this configuration: success: %d, errors: %d' % (success, errors))
                     for k, v in params.items():
                         print(str(k).rjust(15) + ': ' +  str(v))
@@ -226,7 +223,6 @@ class Model(object):
             generator_class = get_generator(datasource)
         except:
             generator_class = UserGenerator
-        print("Using " + repr(generator_class))
             
         self.G = generator_class(datasource, **params)
         self.idim, self.odim = self.G.get_dims(cols=self.target_cols)   
@@ -281,7 +277,6 @@ class Model(object):
         validation_size = self.G.n_valid - self.G.n_train - self.G.l
         self.tb_gen = self.G.gen('valid', func=self.io_func, shuffle=self.shuffle,
                             batch_size=min(validation_size, self.tb_val_limit))
-        print()
         hist = self.nn.fit_generator(
             self.G.gen('train', func=self.io_func, shuffle=self.shuffle),
             steps_per_epoch = (self.G.n_train - self.G.l) // self.batch_size,
@@ -612,7 +607,7 @@ class UserGenerator(Generator):
 def parse(argv):
     dataset = []
     data_files = os.listdir(os.path.join(WDIR, 'data'))
-    print('parse, datafiles: ' + repr(data_files))
+#    print('parse, datafiles: ' + repr(data_files))
     save_file = ''
     if len(argv) > 1:
         argvv = [argv[1]]
@@ -621,9 +616,8 @@ def parse(argv):
                 argvv.append(arg)
             else:
                 argvv[-1] += ',' + arg
-        print(argvv)
         for argg in argvv:
-            print(argg)
+#            print(argg)
             k, v = argg.split('=')
             assert k in ['--dataset', '--save_file'], "wrong keyword: " + k
             if k == '--dataset':
@@ -670,17 +664,18 @@ def parse(argv):
     
 def get_generator(dataset):
     if 'async' in dataset:
-        from nnts.household import HouseholdAsynchronousGenerator as generator
+        from .household import HouseholdAsynchronousGenerator as generator
     elif 'household' in dataset:
-        from nnts.household import HouseholdGenerator as generator
+        from .household import HouseholdGenerator as generator
     elif 'artificial' in dataset:
-        from nnts.artificial import ArtificialGenerator as generator  
+        from .artificial import ArtificialGenerator as generator  
     elif 'lobster' in dataset:
-        from nnts.lobster import LOBSTERGenerator as generator
+        from .lobster import LOBSTERGenerator as generator
     elif 'book' in dataset:
-        from nnts.book import BookGenerator as generator
+        from .book import BookGenerator as generator
     else:
         raise ValueError("No data sample generator found for '%s' dataset" % dataset)
     print('using ' + repr(generator) + ' to draw samples')
     return generator
-
+#
+#
