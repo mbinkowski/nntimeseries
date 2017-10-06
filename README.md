@@ -8,8 +8,10 @@ respective models, with the last one implementing the proposed
 Significance-Offset CNN and LSTM2 implementing multi-layer LSTM.
 
 # Basic Usage
-Each of the above files can be run as a script, e.g.
+Each of the model files can be run as a script, e.g.
+
 "python ./CNN.py --dataset=artificial"   ### default save file 
+
 "python ./SOCNN.py --dataset=household --save_file=results\\household_0.pkl"
 
 Parameters for grid search can be specified in each of the above 
@@ -25,6 +27,14 @@ The dataset has to be specified alongside the paremeters in each of
 the files listed above. 
 
 To generate aritficial datasets used in model evaluation in the paper, run 'python generate_artifical.py'.
+
+# Requirements
+python   >= 3.5.3
+Keras    >= 2.0.2
+numpy    >= 1.12.12
+pandas   >= 0.19.2
+h5py     >= 2.6.0
+
 Feel free to contact Mikolaj Binkowski ('mikbinkowski at gmail.com') with any 
 questions and issues.
 
