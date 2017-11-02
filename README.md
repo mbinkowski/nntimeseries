@@ -10,8 +10,8 @@ Significance-Offset CNN and LSTM2 implementing multi-layer LSTM.
 **Basic Usage**
 
 Each of the model files can be run as a script, e.g.
-- `python ./CNN.py --dataset=artificial`   ### default save file 
--	`python ./SOCNN.py --dataset=household --save_file=results\\household_0.pkl`
+- `python ./CNN.py --dataset=artificial`   # default save file 
+-	`python ./SOCNN.py --dataset=household --save_file=results/household_0.pkl`
 
 Parameters for grid search can be specified in each of the above 
 files. 

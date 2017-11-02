@@ -1,5 +1,6 @@
 """
-Implementation of grid search for LSTM model. 
+Implementation of grid search for stateful (in the sense that Keras defines
+stateful RNNs, see more at https://keras.io/layers/recurrent/LSTM model).
 To change the model architecture edit the LSTMmodel function below. 
 """
 

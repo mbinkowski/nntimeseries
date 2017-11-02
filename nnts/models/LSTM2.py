@@ -1,6 +1,10 @@
 """
 Implementation of grid search for multi-layer LSTM model. 
 To change the model architecture edit the LSTMmodel function below. 
+This implementation trains network with fixed input length and single output 
+being passed to loss function. This allows shuffling samples (each of which 
+containing consecutive iputs) at the start of each epoch, as opposed to 
+'stateful' LSTM implemented in LSTM.py file. 
 """
 
 log=False                     # if True, all the verbose output is saved in logs/ 
