@@ -333,6 +333,7 @@ class Generator(object):
         self.excluded = excluded
         self.cols = [c for c in self.X.columns if c not in self.excluded]
         self._scale(exclude_diff=exclude_diff)
+        self.X.reset_index(drop=True, inplace=True)
     
     def asarray(self, cols=None):
         if cols is None:
@@ -356,7 +357,7 @@ class Generator(object):
             raise Exception('cols = ' + repr(cols) + ' not supported')
 
     def get_dim(self):
-        return self.asarray().shape[1]
+        return len(self.cols)
 
     def get_dims(self, cols):
         return self.get_dim(), len(self.get_target_col_ids(cols=cols))
@@ -377,7 +378,7 @@ class Generator(object):
         self.X.loc[:, cols] = (self.X[cols] - self.means)/(self.stds + (self.stds == 0)*.001)
 
     def _get_ith_sample(self, i):
-        return self.asarray()[i - self.input_length: i + self.output_length, :]
+        return np.asarray(self.X.loc[i - self.input_length: i + self.output_length - 1, self.cols], dtype=np.float32)
         
     def gen(self, mode='train', batch_size=None, func=None, shuffle=True, 
             n_start=0, n_end=np.inf):
