@@ -239,6 +239,8 @@ class Model(object):
         self.patience = 5               # default no. of epoch after which learning rate will decrease if no improvement
         self.reduce_nb = 2              # defualt no. of learning rate reductions
         self.shuffle = True             # default wheather to shuffle batches during training
+        if 'target_column_names' in params:
+            params['target_cols'] = params['target_column_names']        
         self.__dict__.update(params)
 
     def build(self):
